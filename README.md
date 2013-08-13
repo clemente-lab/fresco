@@ -1,4 +1,4 @@
 fresco
 ======
 
-A tool for choosing optimal variable-size features in classification problems
+A tool for choosing optimal variable-size features in classification problems.
