@@ -112,13 +112,12 @@ def remove_otu(X, otu, misc):
 
     return new_X, new_misc
 
-def read_split_file(split_filename):
+def read_split_file(split_file):
     otu_to_seq = {}
     seq_to_otu = {}
 
-    f = open(split_filename)
     while True:
-        line = f.readline()
+        line = split_file.readline()
         if line == '':
             break
         entries = line.split('\t')
@@ -189,7 +188,7 @@ def build_sample_matrix(samplename_map, rec_list, otu_to_seq, scale):
         otu_id = record.get_ID()
         seqs = otu_to_seq[record.get_threshold()][otu_id]
         for seq in seqs:
-            sample_id = parse_sequence_name(seq)
+            sample_id = parse_object_name(seq)
             try:
                 sample_index = samplename_map[sample_id]
                 mat[sample_index][rec_index] += 1

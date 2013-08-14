@@ -1,6 +1,6 @@
 import copy
 import numpy as np
-from parse import parse_sequence_name
+from parse import parse_object_name
 
 class OtuFeatureVector:
     def __init__(self, rec_list, sample_matrix, name_dict, to_copy=None):
@@ -38,7 +38,7 @@ class OtuFeatureVector:
         new_feature = np.zeros( (len(self.sampletable_name_map.keys()), 1) )
 
         for seq_id in seq_list:
-            sample_id = parse_sequence_name(seq_id)
+            sample_id = parse_object_name(seq_id)
 
             #use map, catch a KeyError for missing sample in rarefaction table              
             try:
@@ -64,7 +64,7 @@ class OtuFeatureVector:
     def add_otu_partial(self, otu_rec, seq_list):
         new_feature = np.zeros( (len(self.sampletable_name_map.keys()), 1) )
         for seq_id in seq_list:
-            sample_id = parse_sequence_name(seq_id)
+            sample_id = parse_object_name(seq_id)
             #Check first if the sample still exists, it might just be in the split file              
             #print "looking for id", sample_id, "in", len(self.sampletable_names)                    
             try:

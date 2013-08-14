@@ -8,262 +8,73 @@ import copy
 import time
 from OtuVector import *
 import cPickle as pickle
-from parse import parse_sequence_name
+from parse import parse_object_name
 
 from sklearn.svm import LinearSVC, SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 
 
-def main():
-    parser = argparse.ArgumentParser(description=
-                                      'Run predictive models on otu tables/sample tables')
-    parser.add_argument('-d', help='Set the root directory of the data files',
-                        type=str, default='', dest='rootdir')
-    parser.add_argument('-o', help='Output pickle file (default stdout)', type=str,
-                        default=sys.stdout, dest='output')
-    parser.add_argument('-p', help='pop coef', type=float,
-                        default=0, dest='p')
-    parser.add_argument('-s', help='score coef', type=float,
-                        default=-20, dest='s')
-    parser.add_argument('-t', help='threshold', type=float,
-                        default=None, dest='t')
-    parser.add_argument('-k', help='proportion to prune', type=float,
-                        default=.01, dest='k')
-    parser.add_argument('-proc', help='number of processes', type=int,
-                        default=.1, dest='proc')
-    parser.add_argument('-c', help='cutoff', type=int,
-                        default=None, dest='cutoff')
-    parser.add_argument('-start', help='starting threshold', type=int,
-                        default=10, dest='start')
-    parser.add_argument('-iter', help='iterations', type=int,
-                        default=15, dest='iter')
-    parser.add_argument('-nrand', help='number of runs to average over', type=int,
-                        default=10, dest='n_rand')
-    parser.add_argument('-model', help='Model, {rf, lr, sv}', type=str,
-                        default="lr", dest='model_str')
-    parser.add_argument('-ds', help='Dataset, {449, 626}', type=str,
-                        default="449", dest='ds_str')
-    parser.add_argument('-prob', help='Predict field', type=str,
-                        default="BODY_HABITAT", dest='prob_str')
-    parser.add_argument('-sp', help='proportion to prune', type=float,
-                        default=.05, dest='split_prop')
-    parser.add_argument('-mp', help='proportion to prune', type=float,
-                        default=0, dest='merge_prop')
-    parser.add_argument('-kp', help='proportion to prune', type=float,
-                        default=0, dest='kill_prop')
+def feature_scope_optimization(model, n_iterations, group_map_files, start_level, mapping_file, prediction_field, score_predictions_function, score_function, score_function_parameters, spliting_proportion, merging_proportion, deletion_proportion, test_partition_size, n_cross_folds, n_procs):
 
+    settings = {'cross_folds':n_cross_folds}
 
-    args = parser.parse_args()
-
-    procs = args.proc
-    output = args.output
-    rootdir = args.rootdir
-
-    rarefaction = None
-    thresholds = []
-    for t in range(0, 38, 3):
-        s = '%.2f' % (.61 + .01*t)
-        thresholds.append(s)
-    thresholds.append('0.99')
-
-    predictfield = args.prob_str
-    #predictfield = "DIET"
-    #predictfield = "HOST_INDIVIDUAL"
-    #predictfield = "BODY_HABITAT"
-    #predictfield = "ORIGINAL_SAMPLE_SITE"
-    #prules = [('BODY_HABITAT', 'UBERON:skin')]                                        
-    #predictfields = ["BODY_HABITAT", "ORIGINAL_SAMPLE_SITE", "HOST_INDIVIDUAL"]                     
-    #prules = [None, [('BODY_HABITAT', 'UBERON:skin')], None]                                         
-    settings = {'cross_folds':5}
-
-    if args.model_str == 'rf':
+    if model == 'rf':
         model = Model(model=RandomForestClassifier(n_estimators=10, compute_importances=True), name="RF 500")
-    elif args.model_str == 'sv':
+    elif model == 'sv':
         model = Model(model=LinearSVC(), name="Linear SVC")
     else:
         model = Model(model=LogisticRegression(penalty='l2'), name="Logistic Regression L2")
-    
-    if args.ds_str == '626':
-        dataset = setup_problems.get_626_dataset(rootdir)
-    elif args.ds_str == '550':
-        dataset = setup_problems.get_550_dataset(rootdir)
-    else:
-        dataset = setup_problems.get_449_dataset(rootdir)
-
-    split_coefs = (20, -20) #(args.p, args.s)
-    merge_coefs = (-10, -20) #(1, 1)
-    kill_coefs = (0, 0)
-    start = args.start
-
-    niterations = args.iter
-    n_keep = 1
-
-    #split, merge, kill
-    #props = [(.05, 0, 0),
-    #         (.05, 0, 0),
-    #         (.1, .01, 0),
-    #         (.1, .01, 0),
-    #         (.15, .05, 0),
-    #         (.15, .05, 0)]
-
-    props = [(args.split_prop, args.merge_prop, args.kill_prop) for i in range(10)]
+    props = [(spliting_proportion, merging_proportion, deletion_proportion) for i in range(10)]
 
     #Build maps for otu/sequence relationships for each threhold
-    otu_to_seq = {}
-    seq_to_otu = {}
-    for threshold in thresholds:
-        o_to_s, s_to_o = setup_problems.read_split_file(dataset.get_split_file(threshold))
-        otu_to_seq[threshold] = o_to_s
-        seq_to_otu[threshold] = s_to_o
+    group_to_object = []
+    object_to_group = []
+    for map_file in group_map_files:
+        g_to_o, o_to_g = setup_problems.read_split_file(map_file)
+        group_to_object.append(g_to_o)
+        object_to_group.append(o_to_g)
 
-#    samplenames = set()
-#    for key in otu_to_seq:
-#        l = otu_to_seq[key]
-#        for sequence in l:
-#            samplenames.add(parse_sequence_name(sequence))
-#    samplenames = list(samplenames)
+    samplenames = set()
+    for grp in group_to_object[start_level]:
+        l = group_to_object[start_level][grp]
+        for obj in l:
+            samplenames.add(parse_object_name(obj))
+    samplenames = list(samplenames)
 
+    samplemap = setup_problems.readMappingFile(mapping_file)
+    classmap = setup_problems.build_classmap(samplemap, prediction_field)
 
-    #Get information about the OTU table of the first threshold
-    sampletable, otunames = setup_problems.readOTUTableTXT(dataset.get_otu_table(thresholds[start],
-                                                                                 rarefaction, 10),
-                                                           holdout=0)
-    samplenames = [sample[0] for sample in sampletable]
+    n_keep = 1
+    y = np.array([classmap[samplemap[sample][prediction_field]] for sample in samplenames if sample in samplemap.keys()])
+
+    samplename_map = dict( [(samplenames[index], index) 
+                            for index in range(len(samplenames))] )
+
+    misc = {}
+    rec_list = [OtuRecord(group, start_level, 
+                          misc={'pop':len(group_to_object[start_level][group])})
+                for group in group_to_object[start_level].keys()]
+
+    otu_vectors, outcomes = otu_optimization(samplename_map, group_to_object, object_to_group, y,
+                                             rec_list, settings, model, misc, n_procs, 
+                                             n_iterations, props, n_keep, score_predictions_function,
+                                             score_function, score_function_parameters)
+
+    print [(record.get_ID(), record.get_threshold()) for record in otu_vectors.get_record_list()]
     
-    samplemap = setup_problems.readMappingFile(dataset.get_mappingfile())
-    classmap = setup_problems.build_classmap(samplemap, predictfield)
-
-    y = [classmap[samplemap[sample][predictfield]] for sample in samplenames if sample in samplemap.keys()]
-    
-    if False:
-        classes = list(set(y))
-    #X = [sample[1] for sample in sampletable]
-        rec_list = [OtuRecord(otuname[0], thresholds[start], 
-                              misc={'pop':len(otu_to_seq[thresholds[start]][otuname[0]])})
-                    for otuname in otunames]
-        samplename_map = dict( [(samplenames[index], index) for index in range(len(samplenames))] )
-        X = setup_problems.build_sample_matrix(samplename_map, rec_list, 
-                                               otu_to_seq)
-        cmap = dict( [(yclass, []) for yclass in classes] )
-        for i in range(len(y)):
-            row = X[i][:]
-            s = sum(row)
-            cmap[y[i]].append(s)
-        for key in classmap.keys():
-            cpmap_key = classmap[key]
-            pops = np.array(cmap[cpmap_key])
-            print "Class", key, "avg", np.mean(pops), "std", np.std(pops)
-                
-        exit()
-    all_accuracies = []
-#    n_accuracies = []
-#    r_accuracies = []
-#    s_accuracies = []
-    n_rand = args.n_rand
-    niterations = args.iter
-    for i in range(n_rand):
-        test_indecies = sorted(get_test_indecies(y, .15))
-        train_samplenames = []
-        test_samplenames = []
-        train_y = []
-        test_y = []
-        train_sampletable = []
-        test_sampletable = []
-        for i in range(len(y)):
-            if len(test_indecies) == 0:
-                break
-            if test_indecies[0] == i:
-                test_indecies.pop(0)
-            #test record
-                test_sampletable.append(sampletable[i][1])
-                test_y.append(y[i])
-                test_samplenames.append(samplenames[i])
-            else:
-            #train record
-                train_sampletable.append(sampletable[i][1])
-                train_y.append(y[i])
-                train_samplenames.append(samplenames[i])
-        train_samplename_map = dict( [(train_samplenames[index], index) 
-                                      for index in range(len(train_samplenames))] )
-        test_samplename_map = dict( [(test_samplenames[index], index) 
-                                     for index in range(len(test_samplenames))] )
-        train_y = np.array(train_y)
-        test_y = np.array(test_y)
-        train_sampletable = np.array(train_sampletable)
-        test_sampletable = np.array(test_sampletable)
-
-        def score_otu_vector(test_rec_list, scale=None):
-            #train_X = train_sampletable
-            #test_X = test_sampletable
-
-            def scale_table(table):
-                if scale == None:
-                    return table
-                for r_index in range(table.shape[0]):
-                    row = table[r_index]
-                    s = scale / np.sum(row)
-                    table[r_index] *= s
-                return table
-
-            train_X = scale_table(setup_problems.build_sample_matrix(train_samplename_map, test_rec_list, 
-                                                         otu_to_seq, scale))
-            test_X = scale_table(setup_problems.build_sample_matrix(test_samplename_map, test_rec_list, 
-                                                        otu_to_seq, scale))
-            model.getModel().fit(train_X, train_y)
-            def get_row_pops(table):
-                return [np.sum(table[i]) for i in range(table.shape[0])]
-            row_pops = get_row_pops(train_X) + get_row_pops(test_X)
-            return model.getModel().score(test_X, test_y)
-
-        misc = {"rarefaction":rarefaction, "n":10}
-        rec_list = [OtuRecord(otuname[0], thresholds[start], 
-                              misc={'pop':len(otu_to_seq[thresholds[start]][otuname[0]])})
-                    for otuname in otunames]
-        
-#        s_accuracies.append( score_otu_vector(rec_list, 500.0) )
-#        n_accuracies.append( score_otu_vector(rec_list) )
-#        model.getModel().fit(train_sampletable, train_y)
-#        r_accuracies.append(model.getModel().score(test_sampletable, test_y))
-#        continue
-
-        otu_vectors, outcomes = otu_optimization(train_samplename_map, otu_to_seq, seq_to_otu, train_y,
-                                                 rec_list, thresholds, settings, model, misc, procs, 
-                                                 niterations, props, n_keep, split_coefs, merge_coefs,
-                                                 kill_coefs, initial_sample_matrix=None, saveall=True)
-
-        accuracies = []
-        for otu_vector in otu_vectors:
-#            rec_list = [OtuRecord(otuname[0], thresholds[start])
-#                        for otuname in otunames]
-            accuracies.append(score_otu_vector(otu_vector.get_record_list()))
-        all_accuracies.append(accuracies)
-
-    #s_acc = np.array(s_accuracies)
-    #n_acc = np.array(n_accuracies)
-    #r_acc = np.array(r_accuracies)
-    #print "Scaling accuracies:", "avg", np.mean(s_acc), "std", np.std(s_acc)
-    #print "No rarefaction accuracies:", "avg", np.mean(n_acc), "std", np.std(n_acc)
-    #print "Normal rarefaction accuracies (", rarefaction, "):", "avg", np.mean(r_acc), "std", np.std(r_acc)
-    #exit()
-
-    avg_accuracies = [sum([all_accuracies[n][iteration] for n in range(len(all_accuracies))])/float(len(all_accuracies)) for iteration in range(len(all_accuracies[0]))]
-
-    print avg_accuracies
-
-
 def get_test_indecies(y, prop):
     n_records = len(y)
     sample = np.random.choice(n_records, int(n_records*prop), replace=False)
     return sample
 
-def otu_optimization(samplename_map, otu_to_seq, seq_to_otu, y, rec_list, thresholds, settings, 
-                     model, misc, procs, niterations, props, n_keep, split_coefs, merge_coefs,
-                     kill_coefs, initial_sample_matrix=None, saveall=False):
 
-    if initial_sample_matrix == None:
-        initial_sample_matrix = setup_problems.build_sample_matrix(samplename_map, rec_list, 
-                                                                   otu_to_seq, None)
+def otu_optimization(samplename_map, otu_to_seq, seq_to_otu, y, rec_list, settings, 
+                     model, misc, procs, niterations, props, n_keep, score_predictions_function,
+                     score_function, score_function_parameters, saveall=False):
+
+    initial_sample_matrix = setup_problems.build_sample_matrix(samplename_map, rec_list, 
+                                                               otu_to_seq, None)
     current_otu_vectors = [OtuFeatureVector(rec_list, initial_sample_matrix, samplename_map)]
     
     nclasses = len(set(y))
@@ -295,14 +106,13 @@ def otu_optimization(samplename_map, otu_to_seq, seq_to_otu, y, rec_list, thresh
             otu_vector = current_outcomes[vector_index]['otu_vector']
             #score the current otus for splitting, the larger the better for splitting
             split_scores, merge_scores, kill_scores = \
-                get_scores(current_outcomes[vector_index], otu_vector, split_coefs, merge_coefs,
-                           kill_coefs)
+                score_function(current_outcomes[vector_index], otu_vector.get_record_list(), *score_function_parameters)
         
             for split_prop, merge_prop, kill_prop in props:
                 functions.append(function_from_scores( (otu_vector, y, nclasses, model, settings, 
                                                         nmisc, split_scores, merge_scores, 
                                                         kill_scores, split_prop, merge_prop, 
-                                                        kill_prop, thresholds, otu_to_seq, 
+                                                        kill_prop, otu_to_seq, 
                                                         seq_to_otu)) )
 
         
@@ -333,17 +143,16 @@ def function_from_scores(params):
 
 def process_score_model(otu_vector, y, nclasses, model, settings, misc,
                         split_scores, merge_scores, kill_scores, split_prop,
-                        merge_prop, kill_prop, thresholds, otu_to_seqs, seqs_to_otu):
+                        merge_prop, kill_prop, otu_to_seqs, seqs_to_otu):
     
     rec_list = otu_vector.get_record_list()
     split_indecies, merge_indecies, kill_indecies = choose_indecies(rec_list, split_scores, 
                                                                     merge_scores, 
                                                                     kill_scores, split_prop, 
-                                                                    merge_prop, kill_prop,
-                                                                    thresholds)
+                                                                    merge_prop, kill_prop, len(seqs_to_otu))
     
     new_vector = apply_split_merge_kill(otu_vector, split_indecies, merge_indecies, 
-                                        kill_indecies, thresholds, otu_to_seqs, seqs_to_otu)
+                                        kill_indecies, otu_to_seqs, seqs_to_otu)
     
     #using the new vector, make a new job to run in paralel
     nmisc = {}
@@ -355,7 +164,7 @@ def process_score_model(otu_vector, y, nclasses, model, settings, misc,
     return function[0](*function[1])
 
 def apply_split_merge_kill(otu_vector, split_indecies, merge_indecies, kill_indecies, 
-                           thresholds, otu_to_seqs, seqs_to_otu):
+                           otu_to_seqs, seqs_to_otu):
     pop_list = []
     pop_list += [(i, 1) for i in split_indecies]
     pop_list += [(i, -1) for i in merge_indecies]
@@ -370,20 +179,20 @@ def apply_split_merge_kill(otu_vector, split_indecies, merge_indecies, kill_inde
     pop_otus = [(new_vector.pop_otu(t[0]), t[1]) for t in pop_list]
     for otu_rec, t_change in pop_otus:
         if t_change != None:
-            split_otu_rec(otu_rec, new_vector, thresholds, t_change, otu_to_seqs,
+            split_otu_rec(otu_rec, new_vector, t_change, otu_to_seqs,
                           seqs_to_otu, partial = False)
             
     return new_vector
 
 def choose_indecies(rec_list, split_scores, merge_scores, kill_scores, split_prop, merge_prop, 
-                    kill_prop, thresholds):
+                    kill_prop, n_levels):
     #get a random sampling of otus to split using the scores
     split_exclude_list = [i for i in range(len(rec_list)) if rec_list[i].get_threshold()
-                          == thresholds[-1]]
+                          == n_levels-1]
     split_indecies = sample_from_scores(split_scores, split_prop, split_exclude_list)
     
-    merge_exclude_list = [i for i in range(len(rec_list)) if rec_list[i].get_threshold() == 
-                          thresholds[0]] + list(split_indecies)
+    merge_exclude_list = [i for i in range(len(rec_list)) if rec_list[i].get_threshold() == 0
+                          ] + list(split_indecies)
     merge_indecies = sample_from_scores(merge_scores, merge_prop, merge_exclude_list)
     
     kill_exclude_list = list(split_indecies) + list(merge_indecies)
@@ -391,11 +200,8 @@ def choose_indecies(rec_list, split_scores, merge_scores, kill_scores, split_pro
     
     return split_indecies, merge_indecies, kill_indecies
 
-def get_scores(outcome, otu_vector, split_coefs, merge_coefs, kill_coefs):
-    rec_list = otu_vector.get_record_list()
-
+def get_scores(outcome, feature_list, score_split_function, score_split_params, score_merge_function, score_merge_params, score_delete_function, score_delete_params):
     populations = np.array([record.get_misc()['pop'] for record in rec_list])
-    
     coefs = []
     if len(outcome['coef']) != len(rec_list):
         coefs = outcome['coef'][0]
@@ -404,7 +210,6 @@ def get_scores(outcome, otu_vector, split_coefs, merge_coefs, kill_coefs):
         coefs /= len(outcome['coef'])
     else:
         coefs = outcome['coef']
-#    remove_proportion(kill_prop, otu_vector, coefs, populations)
 
     p_scores = std_dev_dists(populations)
     c_scores = std_dev_dists(coefs)
@@ -426,12 +231,47 @@ def get_scores(outcome, otu_vector, split_coefs, merge_coefs, kill_coefs):
 
     return split_scores, merge_scores, kill_scores
 
-def std_dev_dists(scores):
-    avg = np.mean(scores)
-    std = np.std(scores)
+def deviation_feature_action_scores(outcome, feature_list, split_abun_coef, split_score_coef,
+                                    merge_abun_coef, merge_score_coef, delete_abun_coef, 
+                                    delete_score_coef):
+    abudances = np.array([feature.get_misc()['pop'] for feature in feature_list])
+    pred_scores = []
+    if len(outcome['coef']) != len(feature_list):
+        pred_scores = outcome['coef'][0]
+        for c in outcome['coef'][1:]:
+            pred_scores += c
+        pred_scores /= len(outcome['coef'])
+    else:
+        pred_scores = outcome['coef']
+        
+    value_lists = [pred_scores, abudances]
+    value_coefs = [[split_score_coef, split_abun_coef],
+                   [merge_score_coef, merge_abun_coef],
+                   [delete_score_coef, delete_abun_coef]]
+    split_scores, merge_scores, delete_scores = deviation_scores(value_lists, value_coefs)
+
+    return split_scores, merge_scores, delete_scores
     
-    dists = [(s-avg)/std for s in scores]
-    return dists
+def deviation_scores(value_lists, value_coefs):
+    def std_dev_dists(value_list):
+        value_list = np.array(value_list)
+        avg = np.mean(value_list)
+        std = np.std(value_list)
+        
+        dists = [(s-avg)/std for s in value_list]
+        return dists
+
+    deviation_lists = [std_dev_dists(value_list) for value_list in value_lists]
+    
+    ret_value_lists = []
+    for coefs in value_coefs:
+        ret_value_list = []
+        for value_index in range(len(deviation_lists[0])):
+            value = sum([coefs[i] * deviation_lists[i][value_index] for i in range(len(coefs))])
+            ret_value_list.append(value)
+        ret_value_lists.append(ret_value_list)
+
+    return ret_value_lists
 
 def sample_from_scores(scores, prop, exclude_list):
     #make positive and normalize
@@ -452,39 +292,6 @@ def sample_from_scores(scores, prop, exclude_list):
     sample = np.random.choice(len(scores), int(len(scores)*prop), p=scores, replace=False)
     return sample
 
-def nonrandom_from_scores(scores, otu_vector, cutoff = None, prop = None, thresh = 1):
-    rec_list = otu_vector.get_record_list()
-
-    populations = np.array([record.get_misc()['pop'] for record in rec_list])
-    
-    coefs = []
-    if len(outcomes[0]['coef']) != len(rec_list):
-        coefs = outcomes[0]['coef'][0]
-        for c in outcomes[0]['coef'][1:]:
-            coefs += c
-            coefs /= len(outcomes[0])
-    else:
-        coefs = outcomes[0]['coef']
-
-    avg = np.mean(scores)
-    std = np.std(scores)
-    split = []
-    if cutoff != None or prop != None:
-        best = sorted([(scores[i], i) for i in range(len(scores)) if 
-                       rec_list[i].get_threshold() != '0.99'], key=lambda s:-s[0])
-        if cutoff != None:
-            split = [elem[1] for elem in best[:cutoff]]
-        else:
-            
-            split = [elem[1] for elem in best[:int(len(best) * prop)]]
-    else:
-        split = [i for i in range(len(rec_list)) if rec_list[i].get_threshold() != '0.99' and
-                 scores[i] >= avg+thresh*std]
-                            
-    #print "splitting", len(split), "/", len(rec_list)
-
-    return split
-
 def function_from_vector(otu_vector, y, name, nclasses, model, settings, misc):
     nmisc = {}
     nmisc.update(misc)
@@ -501,13 +308,13 @@ def function_from_vector(otu_vector, y, name, nclasses, model, settings, misc):
     function = (analysis.process, (model, problem, settings, outcome_maker))
     return function
 
-def split_otu_rec(otu_rec, otu_vector, thresholds, threshold_change, otu_to_seqs, seqs_to_otu,
+def split_otu_rec(otu_rec, otu_vector, threshold_change, otu_to_seqs, seqs_to_otu,
                   partial = False):
     otu_id = otu_rec.get_ID()
     old_threshold = otu_rec.get_threshold()
     
     #assume that we haven't been told to split a max-threshold otu?
-    new_threshold = thresholds[thresholds.index(old_threshold)+threshold_change] #1 to split, -1 to merge
+    new_threshold = old_threshold+threshold_change #1 to split, -1 to merge
     sequences = otu_to_seqs[old_threshold][otu_id]
 
     new_otus = otus_from_sequences(sequences, seqs_to_otu[new_threshold], otu_to_seqs[new_threshold],
@@ -548,8 +355,6 @@ def outcome_maker(problem, model, settings, predictions, duration = None,
                   importances = None):
     result = {}
 
-    result['rarefaction'] = problem.getMisc()['rarefaction']
-    result['n'] = problem.getMisc()['n']
     result['model_name'] = model.getName()
     result['problem_name'] = problem.getName()
     if duration != None:

@@ -10,16 +10,13 @@ def getFileRows(filepath):
     rows.close()
     return rowList
 
-def parse_sequence_name(seq):
-    underscore_index = seq.rfind('_')
-    return seq[:underscore_index]
+def parse_object_name(obj):
+    underscore_index = obj.rfind('_')
+    return obj[:underscore_index]
 
-def readMappingFile(filepath):
-    rows = getFileRows(filepath)
+def readMappingFile(mapping_file):
+    rows = [row for row in mapping_file]
     
-    if rows == None:
-        return None
-
     #first line describes the columns
     #ignore first letter (#)
     header = rows[0][1:]
