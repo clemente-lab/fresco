@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from sklearn.ensemble import RandomForestClassifier
@@ -101,11 +100,7 @@ def confusionMatrix(yreal, ypred, nclasses):
         matrix[row, col] += 1
     return matrix
 
-def build_problem_process(model, problem_builder, problem_spec, settings, outcome_maker):
-    problem = problem_builder(**problem_spec)
-    return process(model, problem, settings, outcome_maker)
-
-def process(model, problem, settings, outcome_maker):
+def process(model, problem, settings, outcome_maker, outcome_maker_params):
     nclasses = problem.getNClasses()
     cross_folds = settings['cross_folds']
 
@@ -113,7 +108,7 @@ def process(model, problem, settings, outcome_maker):
     
     #for stochastic classifiers, average over niter                                                  
     niter = model.getIterations()
-    #for models with feature ranks, like decision trees                                              
+    #for models with feature ranks, like decision trees                            
     rank = model.getFeatureRank()
 
     if collect_duration:
@@ -135,14 +130,7 @@ def process(model, problem, settings, outcome_maker):
         duration = time.time() - before
         outcome['duration'] = duration
    
-    if rank and model.getModel().compute_importances:
-        outcome['importances'] = model.getModel().feature_importances_
-    if rank and isinstance(model.getModel(), LogisticRegression):
-        outcome['importances'] = model.getModel().coef_
-    if rank and isinstance(model['model'], SVC) and model.getModel().kernel == 'linear':
-        outcome['importances'] = model.getModel().coef_
-
-    return outcome_maker(**outcome)
+    return outcome_maker(*outcome_maker_params, **outcome)
 
 def get_average_list_accuracy(yreal, predictions):
     acc = 0
@@ -154,24 +142,9 @@ def get_list_accuracy(y1, y2):
     correct = sum( [1 if y1[i] == y2[i] else 0 for i in range(len(y1))] )
     return float(correct) / len(y1)
 
-def decompose(X, dim):
-    pca = PCA(n_components=dim)
-    pca.fit(X)
-    dX = pca.transform(X)
-    return dX
-
-def rarefactor(biomfile, outputfile, n):
-    if not os.path.isfile(outputfile + ".txt"):
-        os.system("python $QIIME/scripts/single_rarefaction.py -i "+biomfile+
-                  " -o "+outputfile+".biom -d "+str(n))
-        os.system("convert_biom.py -i "+outputfile+".biom -o "
-                  +outputfile+".txt -b --header_key=\"taxonomy\"")
-        os.system("rm "+outputfile+".biom")
-
-
 class OutcomeHandler:
     #upon producing an outcome, dump_function will be called with                                                                                                                                            
-    #dump_function(outcome, *dump_parameters)                                                                                                                                                                
+    #dump_function(outcome, *dump_parameters)                                                                                                                                                               
     def __init__(self, dump_function, dump_parameters):
         self.dump_parameters = dump_parameters
         self.dump_function = dump_function

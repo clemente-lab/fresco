@@ -1,11 +1,11 @@
-import otu_trees
+import scope_optimization
 import analysis
 import argparse
 
 settings_filepath = "fresco.config"
 
 def main():
-    score_functions = {'DEVIATION_SCORE':otu_trees.deviation_feature_action_scores}
+    score_functions = {'DEVIATION_SCORE':scope_optimization.deviation_feature_action_scores}
     prediction_score_functions = {'ACCURACY_PROPORTION_SCORE':analysis.get_average_list_accuracy}
 
     parameters = {}
@@ -54,7 +54,7 @@ def main():
                                                      parameter_values.pop('deletion_abun_coef'),
                                                      parameter_values.pop('deletion_score_coef'))
 
-    otu_trees.feature_scope_optimization(**parameter_values)
+    scope_optimization.feature_scope_optimization(**parameter_values)
     
 def evaluate_string_lookups(lookup_pairs, parameter_values):
     try:
