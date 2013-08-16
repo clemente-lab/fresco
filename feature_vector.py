@@ -116,15 +116,15 @@ class FeatureVector:
 
 
 class FeatureRecord:
-    def __init__(self, feature_id, threshold, parents = [], children = [], misc={}):
+    def __init__(self, feature_id, threshold, pop, parents = [], children = []):
         self.feature_id = feature_id
         self.threshold = threshold
         self.parents = parents
         self.children = children
-        self.misc = misc
+        self.pop = pop
 
-    def get_misc(self):
-        return self.misc
+    def get_pop(self):
+        return self.pop
     def get_threshold(self):
         return self.threshold
     def get_ID(self):

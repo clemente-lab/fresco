@@ -36,17 +36,11 @@ class Problem:
         self.name = name
 
 class Model:
-    def __init__(self, model = None, name = "", iterations = 1, featureRank = False, misc = {}):
+    def __init__(self, model = None, name = "", iterations = 1, misc = {}):
         self.model = model
         self.name = name
         self.iterations = iterations
-        self.featureRank = featureRank
         self.misc = misc
-
-    def __deepcopy__(self, memo):
-        new = Model(name = self.name, iterations = self.iterations, featureRank = self.featureRank, misc = self.misc)
-        new.model = copy.deepcopy(self.model, memo)
-        return new
 
     def getMisc(self):
         return self.misc
@@ -57,9 +51,6 @@ class Model:
     def getIterations(self):
         return self.iterations
 
-    def getFeatureRank(self):
-        return self.featureRank
-
     def getName(self):
         return self.name
 
@@ -68,9 +59,6 @@ class Model:
 
     def setY(self, iterations):
         self.iterations = iterations
-
-    def setFeatureRanks(self, featureRanks):
-        self.featureRanks = featureRanks
 
     def setName(self, name):
         self.name = name
