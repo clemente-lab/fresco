@@ -1,0 +1,3 @@
+python otu_trees.py -ds 626 -prob DIET -sp .05 -mp 0 -proc 15 -model rf -d /hpc/users/xbernsr01/scratch/ > /hpc/users/xbernsr01/results/RF_626DIET_05_0.result 2> /hpc/users/xbernsr01/results/RF_626DIET_05_0.error
+python otu_trees.py -ds 626 -prob DIET -sp .05 -mp 0 -proc 15 -model sv -d /hpc/users/xbernsr01/scratch/ > /hpc/users/xbernsr01/results/SV_626DIET_05_0.result 2> /hpc/users/xbernsr01/results/SV_626DIET_05_0.error
+python otu_trees.py -ds 626 -prob DIET -sp .05 -mp 0 -proc 15 -model lr -d /hpc/users/xbernsr01/scratch/ > /hpc/users/xbernsr01/results/LR_626DIET_05_0.result 2> /hpc/users/xbernsr01/results/LR_626DIET_05_0.error

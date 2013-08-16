@@ -13,8 +13,7 @@ from sklearn.ensemble import RandomForestClassifier
 
 #Main interface function for scope optimization library.
 #Initializes values for the algorithm
-def feature_scope_optimization(model, n_iterations, group_map_files, start_level, mapping_file, prediction_field, include_only, n_trials, n_keep, score_predictions_function, score_function, score_function_parameters, spliting_proportion, merging_proportion, deletion_proportion, test_partition_size, n_cross_folds, n_procs):
-
+def feature_scope_optimization(model, n_iterations, group_map_files, start_level, mapping_file, prediction_field, include_only, n_trials, n_keep, score_predictions_function, score_function, score_function_parameters, spliting_proportion, merging_proportion, deletion_proportion, test_partition_size, n_cross_folds, n_procs, feature_vector_output, prediction_testing_output, test_holdout):
     #'model' will be passed in as a short identifier string, such as lr or rf
     #parse it to a scikit_learn classifier
     skl_model = parse_model_string(model)
@@ -57,17 +56,25 @@ def feature_scope_optimization(model, n_iterations, group_map_files, start_level
 
     misc = {}
 
+    #test_indeces = get_test_indecies(len(y), test_holdout)
+
     #build a list of features to start iterating on
     rec_list = [FeatureRecord(group, start_level,
                           len(group_to_object[start_level][group]))
                 for group in group_to_object[start_level].keys()]
 
-    feature_vector, outcome = feature_optimization(samplename_map, group_to_object, object_to_group, y,
+    feature_vectors, outcomes = feature_optimization(samplename_map, group_to_object, object_to_group, y,
                                              rec_list, n_cross_folds, skl_model, misc, n_procs, 
                                              n_iterations, props, n_keep, score_predictions_function,
-                                             score_function, score_function_parameters)
+                                             score_function, score_function_parameters, saveall=True)
 
-    print_features(feature_vector, outcome)
+    print_features_to_file(feature_vectors[-1], outcomes[-1], feature_vector_output)
+
+    print_outcome_to_file(outcomes, prediction_testing_output)
+
+def get_test_indecies(n_records, prop):
+    sample = np.random.choice(n_records, int(n_records*prop), replace=False)
+    return sample
 
 #Return a list of every sample name that has at least one field/value pair in include_only
 #If include_only is None, return the samplenames
@@ -83,6 +90,28 @@ def prune_samplenames(samplenames, samplemap, include_only):
 
     return [name for name in samplenames if is_included(name)]
 
+def print_outcome_to_file(outcomes, filepath):
+    f = open(filepath, 'w')
+    
+    header = ("MODEL_NAME", "ACCURACY", "DISTRIBUTION")
+    lines = [header]
+    for outcome in outcomes:
+        rec_list = outcome['feature_vector'].get_record_list()
+        t_list = [record.get_threshold() for record in rec_list]
+        t_set = set(t_list)
+        dist = [(thresh, t_list.count(thresh)) for thresh in sorted(list(t_set))]
+
+
+        lines.append( (outcome['model_name'], outcome["accuracy"]) )
+    
+    for prop in lines:
+        line = ""
+        for i in range(len(prop)):
+            line += str(prop[i])
+            if i != len(prop) - 1:
+                line += "\t"
+        f.write(line+"\n")
+    
 
 #Parse a string describing a classifier (lr, sv, rf) into a Model object
 def parse_model_string(model_str):
@@ -95,7 +124,9 @@ def parse_model_string(model_str):
         return Model(model=LogisticRegression(penalty='l2'), name="Logistic Regression L2")
 
 #Print the properties of each feature in a feature vector, including it's score in the outcome
-def print_features(feature_vector, outcome):
+def print_features_to_file(feature_vector, outcome, filepath):
+    f = open(filepath, 'w')
+
     rec_list = feature_vector.get_record_list()
 
     populations = np.array([record.get_pop() for record in rec_list])    
@@ -114,7 +145,7 @@ def print_features(feature_vector, outcome):
             line += str(prop[i])
             if i != len(prop) - 1:
                 line += "\t"
-        print line
+        f.write(line+"\n")
 
 def feature_optimization(samplename_map, group_to_object, object_to_group, y, rec_list, n_cross_folds, 
                      model, misc, procs, niterations, props, n_keep, score_predictions_function,
@@ -152,10 +183,6 @@ def feature_optimization(samplename_map, group_to_object, object_to_group, y, re
 
     #main iteration loop
     for iteration in range(niterations):
-        #print progress
-        print "iteration", iteration
-        print_progress_report(current_outcomes[0])
-
         #get a list of functions to try out in paralel
         functions = []
         for vector_index in range(len(current_outcomes)):
