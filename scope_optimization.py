@@ -101,9 +101,8 @@ def print_outcome_to_file(outcomes, filepath):
         t_set = set(t_list)
         dist = [(thresh, t_list.count(thresh)) for thresh in sorted(list(t_set))]
 
-
         lines.append( (outcome['model_name'], outcome["accuracy"]) )
-    
+
     for prop in lines:
         line = ""
         for i in range(len(prop)):
@@ -111,7 +110,7 @@ def print_outcome_to_file(outcomes, filepath):
             if i != len(prop) - 1:
                 line += "\t"
         f.write(line+"\n")
-    
+    f.close()
 
 #Parse a string describing a classifier (lr, sv, rf) into a Model object
 def parse_model_string(model_str):
@@ -146,6 +145,7 @@ def print_features_to_file(feature_vector, outcome, filepath):
             if i != len(prop) - 1:
                 line += "\t"
         f.write(line+"\n")
+    f.close()
 
 def feature_optimization(samplename_map, group_to_object, object_to_group, y, rec_list, n_cross_folds, 
                      model, misc, procs, niterations, props, n_keep, score_predictions_function,
