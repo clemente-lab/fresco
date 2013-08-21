@@ -116,7 +116,7 @@ def print_outcome_to_file(outcomes, filepath):
 #Parse a string describing a classifier (lr, sv, rf) into a Model object
 def parse_model_string(model_str):
     if model_str == 'rf':
-        return Model(model=RandomForestClassifier(n_estimators=10, compute_importances=True),
+        return Model(model=RandomForestClassifier(n_estimators=10),
                      name="Random Forest, n=10")
     if model_str == 'sv':
         return Model(model=LinearSVC(), name="Linear SVC")
@@ -463,7 +463,7 @@ def scores_from_model(model):
             return avgs
         else:
             return coefs
-    elif hasattr(model.getModel(), 'feature_importances_'):
+    elif hasattr(model, 'feature_importances_'):
         return model.feature_importances_
     return None
 
