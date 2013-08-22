@@ -9,40 +9,45 @@ def main():
     prediction_score_functions = {'ACCURACY_PROPORTION_SCORE':analysis.get_average_list_accuracy}
 
     parameters = {}
+
+    # Input/output and resource allocation options
     parameters["mapping_file"] = {'key':'--mapping_file', 'type':str, 'help':'Filepath to the mapping file.'}
-    parameters["group_map_files"] = {'key':'--group_map_files', 'type':str, 'help':'Filepath to a file containing one group_map filepath per line.'}
+    parameters["group_map_files"] = {'key':'--group_map_files', 'type':str, 'help':'Filepath to a file containing one group map filepath per line. These filepaths should be in order from largest groups to smallest groups. For example, 61%%, 94%%, and 99%% OTU maps.'}
     parameters["prediction_field"] = {'key':'--prediction_field', 'type':str, 'help':'The name of the field in the mapping file to predict.'}
+    parameters["include_only"] = {'key':'--include_only', 'type':str, 'help': 'A string to specify the type of samples to be included in building the feature vector. Format should be a comma separated list of FIELD:VALUE pairs, where FIELD and VALUE correspond to a field name and value from samples in the mapping file', 'default':""}
     parameters["n_procs"] = {'key':'--n_procs', 'type':int, 'help':'The number of processes to use in the optimization process.', 'default':1}
-    #Optimization options
+    parameters["prediction_testing_output"] = {'key':'--prediction_testing_output', 'type':str, 'help': 'Filepath to output information about the final prediction accuracy.', 'default':"prediction_testing_output.txt"}
+    parameters["feature_vector_output"] = {'key':'--feature_vector_output', 'type':str, 'help': 'Filepath to output information about the finished feature vector.', 'default':"feature_vector_output.txt"}
+
+    # Optimization options
     parameters["n_iterations"] = {'key':'--n_iterations', 'type':int, 'help':'Number of iterations to make in optimizing the feature vector', 'default':10}
-    parameters["start_level"] = {'key':'--start_level', 'type':int, 'help':'The index of the group map file at which all feature will start', 'default':0}
+    parameters["start_level"] = {'key':'--start_level', 'type':int, 'help':'The index of the group map file at which all features will start (uses zero-based indexing)', 'default':0}
     parameters["n_trials"] = {'key':'--n_trials', 'type':int, 'help':'The number of random trials to be compared every iteration, per feature vector saved.', 'default':10}
     parameters["n_keep"] = {'key':'--n_keep', 'type':int, 'help':'The number of feature vectors to be saved every iteration. For example, for --n_keep 2, the top 2 scoring models will be saved every iteration.', 'default':1}
     parameters["model"] = {'key':'--model', 'type':str, 'help':'String describing the classifier to use. Select from: \"lr\" (Logistic Regression), \"rf\" (Random Forest) \"sv\" (Linear Support Vector Machine)', 'default':"lr"}
     parameters["n_cross_folds"] = {'key':'--n_cross_folds', 'type':int, 'help':'The number of cross folds to use in measuring the effectiveness of a split/merge selection set internally.', 'default':5}
     parameters["test_partition_size"] = {'key':'--test_partition_size', 'type':float, 'help':'The proportion of samples to be held out for measuring the effectiveness of the final feature vector.', 'default':0.0}
     parameters["test_holdout"] = {'key':'--test_holdout', 'type':float, 'help':'The proportion of the data to be held out for testing.', 'default':0.0}
-    parameters["prediction_testing_output"] = {'key':'--prediction_testing_output', 'type':str, 'help': 'Filepath to output information about the final prediction accuracy.', 'default':"prediction_testing_output.txt"}
-    #Functional and conditional parameters
+
+    # Functional options
     parameters["score_function"] = {'key':'--score_function_str', 'type':str, 'help': 'A string to specify the scoring function for splitting, merging or deleting features. Current options: ' + str(score_functions.keys()), 'default':"DEVIATION_SCORE"}
-    parameters["feature_vector_output"] = {'key':'--feature_vector_output', 'type':str, 'help': 'Filepath to output information about the finished feature vector.', 'default':"feature_vector_output.txt"}
-    parameters["include_only"] = {'key':'--include_only', 'type':str, 'help': 'A string to specify the type of samples to be included in building the feature vector. Format should be a comma separated list of FIELD:VALUE pairs, where FIELD and VALUE correspond to a field name and value from samples in the mapping file', 'default':""}
     parameters["score_predictions_function"] = {'key':'--score_predictions_function_str', 'type':str, 'help':'A string to specify the scoring function for predicted vs real response variables. Current options: ' + str(prediction_score_functions.keys()), 'default':"ACCURACY_PROPORTION_SCORE"}
-    #conditional
-    parameters["spliting_score_coef"] = {'key':'--spliting_score_coef', 'type':float, 'help':'The coeficient on the deviation of the feature score in calculating split score, for use in the DEVIATION_SPLIT_SCORE split scoring function.', 'default':-2}
-    parameters["spliting_abun_coef"] = {'key':'--spliting_abun_coef', 'type':float, 'help':'The coeficient on the deviation of the feature abundance in calculating split score, for use in the DEVIATION_SPLIT_SCORE split scoring function.', 'default':1}
+
+    # Conditional options
+    parameters["spliting_score_coef"] = {'key':'--spliting_score_coef', 'type':float, 'help':'The coeficient on the deviation of the feature score in calculating split score, for use in the DEVIATION_SCORE split scoring function.', 'default':-2}
+    parameters["spliting_abun_coef"] = {'key':'--spliting_abun_coef', 'type':float, 'help':'The coeficient on the deviation of the feature abundance in calculating split score, for use in the DEVIATION_SCORE split scoring function.', 'default':1}
     parameters["spliting_proportion"] = {'key':'--spliting_proportion', 'type':float, 'help':'The proportion of the feature vector to be split every iteration', 'default':.025}
-    parameters["merging_score_coef"] = {'key':'--merging_score_coef', 'type':float, 'help':'The coeficient on the deviation of the feature score in calculating merge score, for use in the DEVIATION_MERGE_SCORE merge scoring function.', 'default':-2}
-    parameters["merging_abun_coef"] = {'key':'--merging_abun_coef', 'type':float, 'help':'The coeficient on the deviation of the feature abundance in calculating merge score, for use in the DEVIATION_MERGE_SCORE merge scoring function.', 'default':-1}
+    parameters["merging_score_coef"] = {'key':'--merging_score_coef', 'type':float, 'help':'The coeficient on the deviation of the feature score in calculating merge score, for use in the DEVIATION_SCORE merge scoring function.', 'default':-2}
+    parameters["merging_abun_coef"] = {'key':'--merging_abun_coef', 'type':float, 'help':'The coeficient on the deviation of the feature abundance in calculating merge score, for use in the DEVIATION_SCORE merge scoring function.', 'default':-1}
     parameters["merging_proportion"] = {'key':'--merging_proportion', 'type':float, 'help':'The proportion of the feature vector to be merged every iteration', 'default':.025}
-    parameters["deletion_score_coef"] = {'key':'--deletion_score_coef', 'type':float, 'help':'The coeficient on the deviation of the feature score in calculating deletion score, for use in the DEVIATION_DELETE_SCORE deletion scoring function.', 'default':0}
-    parameters["deletion_abun_coef"] = {'key':'--deletion_abun_coef', 'type':float, 'help':'The coeficient on the deviation of the feature abundance in calculating deletion score, for use in the DEVIATION_DELETE_SCORE deletion scoring function.', 'default':0}
+    parameters["deletion_score_coef"] = {'key':'--deletion_score_coef', 'type':float, 'help':'The coeficient on the deviation of the feature score in calculating deletion score, for use in the DEVIATION_SCORE deletion scoring function.', 'default':0}
+    parameters["deletion_abun_coef"] = {'key':'--deletion_abun_coef', 'type':float, 'help':'The coeficient on the deviation of the feature abundance in calculating deletion score, for use in the DEVIATION_SCORE deletion scoring function.', 'default':0}
     parameters["deletion_proportion"] = {'key':'--deletion_proportion', 'type':float, 'help':'The proportion of the feature vector to be deleted every iteration.', 'default':0}
     
     defaults_from_settings_file(settings_filepath, parameters)
 
     parameter_values = get_commandline_parameters(parameters, 
-                                                  'Run predictive models on otu tables/sample tables')    
+                                                  'Run predictive models on variable-sized features')
 
     lookup_pairs = [('score_function', score_functions),
                     ('score_predictions_function', prediction_score_functions)]
