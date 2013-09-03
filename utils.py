@@ -1,64 +1,26 @@
-import copy
+def parse_object_string_sample(object_string):
+    underscore_index = object_string.rfind('_')
+    return object_string[:underscore_index]
 
-class Problem:
-    def __init__(self, X, y, nclasses = 0, name = "", misc = {}):
-        self.y = y
-        self.X = X
-        self.nclasses = nclasses
-        self.name = name
-        self.misc = misc
+from sklearn.svm import LinearSVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 
-    def getMisc(self):
-        return self.misc
+#Parse a string describing a classifier (lr, sv, rf) into a Model object
+def parse_model_string(model_str):
+    if model_str == 'rf':
+        return RandomForestClassifier(n_estimators=10)
+    if model_str == 'sv':
+        return LinearSVC()
+    else:
+        return LogisticRegression(penalty='l2')
 
-    def getX(self):
-        return self.X
+def get_average_list_accuracy(yreal, predictions):
+    acc = 0
+    for i in range(len(predictions)):
+        acc += get_list_accuracy(yreal, predictions[i])
+    return float(acc)/len(predictions)
 
-    def getY(self):
-        return self.y
-
-    def getNClasses(self):
-        return self.nclasses
-
-    def getName(self):
-        return self.name
-
-    def setNClasses(self, nclasses):
-        self.nclasses = nclasses
-
-    def setX(self, X):
-        self.X = X
-
-    def setY(self, y):
-        self.y = y
-
-    def setName(self, name):
-        self.name = name
-
-class Model:
-    def __init__(self, model = None, name = "", iterations = 1, misc = {}):
-        self.model = model
-        self.name = name
-        self.iterations = iterations
-        self.misc = misc
-
-    def getMisc(self):
-        return self.misc
-
-    def getModel(self):
-        return self.model
-
-    def getIterations(self):
-        return self.iterations
-
-    def getName(self):
-        return self.name
-
-    def setX(self, model):
-        self.model = model
-
-    def setY(self, iterations):
-        self.iterations = iterations
-
-    def setName(self, name):
-        self.name = name
+def get_list_accuracy(y1, y2):
+    correct = sum( [1 if y1[i] == y2[i] else 0 for i in range(len(y1))] )
+    return float(correct) / len(y1)
