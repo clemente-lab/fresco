@@ -12,7 +12,7 @@ Dependencies:
 
 To test your fresco installation, run the following command:
 
-    python script.py -h
+    python fresco.py -h
 
 You should see the script's help text displayed.
 
