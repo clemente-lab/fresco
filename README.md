@@ -19,7 +19,7 @@ You should see the script's help text displayed.
 Next, try running fresco over the test dataset (Crawford et al., 2009) that is
 included in the repository:
 
-    python script.py --group_map_files test_data/otu_maps.txt --mapping_file test_data/study_451_mapping_file.txt --prediction_field TREATMENT --start_level 3 --n_procs 4 --model lr --prediction_testing_output test_data/prediction_testing_output.txt --feature_vector_output test_data/feature_vector_output.txt
+    python command_line_script.py --group_map_files test_data/otu_maps.txt --mapping_file test_data/study_451_mapping_file.txt --prediction_field TREATMENT --start_level 3 --n_procs 4 --model lr --prediction_testing_output test_data/prediction_testing_output.txt --feature_vector_output test_data/feature_vector_output.txt
 
 This command assumes that you are at the root level of the fresco directory.
 You can change the number of parallel processes that are launched by changing
