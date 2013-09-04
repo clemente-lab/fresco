@@ -21,7 +21,7 @@ def main():
     # Optimization options
     parameters["n_iterations"] = {'key':'--n_iterations', 'type':int, 'help':'Number of iterations to make in optimizing the feature vector', 'default':10}
     parameters["start_level"] = {'key':'--start_level', 'type':int, 'help':'The index of the group map file at which all features will start (uses zero-based indexing)', 'default':0}
-    parameters["n_trials"] = {'key':'--n_trials', 'type':int, 'help':'The number of random trials to be compared every iteration, per feature vector saved.', 'default':5}
+    parameters["n_trials"] = {'key':'--n_trials', 'type':int, 'help':'Used for testing functionality, this parameter defines the number of cross folds to use. To omit testing and only generate the optimized feature vector, use value 0.', 'default':5}
     parameters["n_maintain"] = {'key':'--n_maintain', 'type':int, 'help':'The number of feature vectors to be saved every iteration. For example, for --n_maintain 2, the top 2 scoring models will be saved every iteration.', 'default':1}
     parameters["n_generate"] = {'key':'--n_generate', 'type':int, 'help':'The number of feature vectors to be generated from each vector every iteration. For example, for --n_maintain 2 and --n_generate 3, the maxiumum number of vectors to be generated and assessed every iteration is 6.', 'default':1}
     parameters["model"] = {'key':'--model', 'type':str, 'help':'String describing the classifier to use. Select from: \"lr\" (Logistic Regression), \"rf\" (Random Forest) \"sv\" (Linear Support Vector Machine)', 'default':"lr"}
