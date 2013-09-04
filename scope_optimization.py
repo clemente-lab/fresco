@@ -14,7 +14,5 @@ def scope_optimization(initial_feature_vector, problem_data, group_vector_scorer
         outcome_set.sort(key=lambda outcome:outcome.prediction_quality, reverse=True)
         outcome_set = outcome_set[:n_maintain]
         return_set.append(outcome_set[0])
-       
-    return return_set if save_iterations else return_set[-1][1]
-        
-    
+
+    return return_set if save_iterations else return_set[-1]
