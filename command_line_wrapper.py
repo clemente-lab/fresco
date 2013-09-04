@@ -11,6 +11,7 @@ from action_vector_generator import ActionVectorGenerator, SplitAction, MergeAct
 import write_results
 import parallel_processing
 from sklearn.cross_validation import KFold
+from model_outcome import ModelOutcome
 
 
 def command_line_argument_wrapper(model, n_iterations, group_map_files, start_level, mapping_file, prediction_field, include_only,
@@ -20,6 +21,8 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
                                   n_processes, output_dir, n_trials):
     if not exists(output_dir):
         makedirs(output_dir)
+    feature_vector_output_fp = join(output_dir,
+                                    'feature_vector_output.txt')
 
     vector_model = GroupVectorModel(utils.parse_model_string(model))
     group_vector_scorer = CrossValidationGroupVectorScorer(score_predictions_function, vector_model, n_cross_folds)
@@ -52,11 +55,17 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
         write_results.write_to_file(
                 write_results.testing_output_lines(test_outcomes),
                 prediction_testing_output_fp)
+        
+        avg_outcome = stitch_avg_outcome(test_outcomes[-1], masks)
+
+        write_results.write_to_file(
+                write_results.feature_output_lines(avg_outcome),
+                feature_vector_output_fp)
+
+
     else:
         outcome = scope_optimization.scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, n_generate, False)
 
-        feature_vector_output_fp = join(output_dir,
-                                        'feature_vector_output.txt')
         write_results.write_to_file(
                 write_results.feature_output_lines(outcome),
                 feature_vector_output_fp)
@@ -67,12 +76,45 @@ def mask_testing(problem_data, masks, vector_model, score_predictions_function, 
     vector_model.fit(problem_data, feature_vector)
     problem_data.set_mask(test_mask)
     test_predictions = vector_model.predict(problem_data, feature_vector)
-    test_quality_score = score_predictions_function(problem_data.get_response_variables(), test_predictions)
+    prediction_quality = score_predictions_function(problem_data.get_response_variables(), test_predictions)
+    feature_scores = vector_model.get_feature_scores()
+
+    outcome = ModelOutcome(feature_vector, feature_scores, prediction_quality, test_predictions)
+
     if ordering_tag != None:
-        return (ordering_tag, test_quality_score)
+        return (ordering_tag, outcome)
     else:
-        return test_quality_score
+        return outcome
    
+def stitch_avg_outcome(outcome_list, masks):
+    n_features = len(masks[0][0])
+    feature_record_lists = [[] for i in range(n_features)]
+    prediction_lists = [[] for i in range(n_features)]
+    feature_score_lists = [[] for i in range(n_features)]
+
+    train_indecies = [0 for outcome in outcome_list]
+    test_indecies = [0 for outcome in outcome_list]
+
+    for feature_index in range(n_features):
+        for outcome_index in range(len(outcome_list)):
+            if masks[outcome_index][0][feature_index]:
+                feature_record_lists[feature_index].append(outcome_list[outcome_index].feature_vector.get_record_list()[train_indecies[outcome_index]])
+                feature_score_lists[feature_index].append(outcome_list[outcome_index].feature_scores[train_indecies[outcome_index]])
+                train_indecies[outcome_index] += 1
+            if masks[outcome_index][1][feature_index]:
+                prediction_lists[feature_index].append(outcome_list[outcome_index].predictions[test_indecies[outcome_index]])
+                test_indecies[outcome_index] += 1
+                
+    average_feature_scores = [float(sum(score_list))/len(score_list) for score_list in feature_score_lists]
+    predictions = prediction_lists[:][0]
+    feature_records = [feature_list[0] for feature_list in feature_record_lists]
+    feature_vector = FeatureVector(feature_records)
+    average_prediction_score = sum([outcome.prediction_quality for outcome in outcome_list])
+   
+    avg_outcome = ModelOutcome(feature_vector, average_feature_scores, average_prediction_score, predictions)
+    return avg_outcome
+
+
 def build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, n_processes):
         #For each scope, build a map from group to object and vice versa
     group_to_object = []

@@ -34,12 +34,12 @@ def feature_output_lines(outcome):
     
 def testing_output_lines(testing_output):
     lines = []
-    
+
     header = ("ITERATION", "AVG_PREDICTION_SCORE", "STD_DEV_PREDICTION_SCORE")
     properties = [header]
 
     for iteration in range(len(testing_output)):
-        results = np.array(testing_output[iteration])
+        results = np.array([outcome.prediction_quality for outcome in testing_output[iteration]])
         avg = np.mean(results)
         std = np.std(results)
         properties.append( (iteration, avg, std) ) 
