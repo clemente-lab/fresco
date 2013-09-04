@@ -12,11 +12,10 @@ def main():
     # Input/output and resource allocation options
     parameters["mapping_file"] = {'key':'--mapping_file', 'type':str, 'help':'Filepath to the mapping file.'}
     parameters["group_map_files"] = {'key':'--group_map_files', 'type':str, 'help':'Filepath to a file containing one group map filepath per line. These filepaths should be in order from largest groups to smallest groups. For example, 61%%, 94%%, and 99%% OTU maps.'}
+    parameters["output_dir"] = {'key':'--output_dir', 'type':str, 'help': 'Directory to write results to. Results will include information about the final prediction accuracy, as well as information about the finished feature vector.'}
     parameters["prediction_field"] = {'key':'--prediction_field', 'type':str, 'help':'The name of the field in the mapping file to predict.'}
     parameters["include_only"] = {'key':'--include_only', 'type':str, 'help': 'A string to specify the type of samples to be included in building the feature vector. Format should be a comma separated list of FIELD:VALUE pairs, where FIELD and VALUE correspond to a field name and value from samples in the mapping file', 'default':""}
     parameters["n_processes"] = {'key':'--n_procs', 'type':int, 'help':'The number of processes to use in the optimization process.', 'default':1}
-    parameters["prediction_testing_output"] = {'key':'--prediction_testing_output', 'type':str, 'help': 'Filepath to output information about the final prediction accuracy.', 'default':"prediction_testing_output.txt"}
-    parameters["feature_vector_output"] = {'key':'--feature_vector_output', 'type':str, 'help': 'Filepath to output information about the finished feature vector.', 'default':"feature_vector_output.txt"}
 
     # Optimization options
     parameters["n_iterations"] = {'key':'--n_iterations', 'type':int, 'help':'Number of iterations to make in optimizing the feature vector', 'default':10}
