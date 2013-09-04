@@ -1,3 +1,5 @@
+from os import makedirs
+from os.path import exists, join
 import scope_optimization
 import utils
 import parse_input_files
@@ -15,7 +17,10 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
                                   n_maintain, n_generate, score_predictions_function, split_abun_coef, split_score_coef, merge_abun_coef,
                                   merge_score_coef, delete_abun_coef, delete_score_coef,
                                   split_proportion, merge_proportion, delete_proportion, n_cross_folds,
-                                  n_processes, feature_vector_output, prediction_testing_output, n_trials):
+                                  n_processes, output_dir, n_trials):
+    if not exists(output_dir):
+        makedirs(output_dir)
+
     vector_model = GroupVectorModel(utils.parse_model_string(model))
     group_vector_scorer = CrossValidationGroupVectorScorer(score_predictions_function, vector_model, n_cross_folds)
     problem_data, initial_feature_vector = build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, n_processes)
@@ -42,11 +47,19 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
         for iteration, mask_result in mask_results:
             test_outcomes[iteration].append(mask_result)
 
-        write_results.write_to_file(write_results.testing_output_lines(test_outcomes), prediction_testing_output)
+        prediction_testing_output_fp = join(output_dir,
+                                            'prediction_testing_output.txt')
+        write_results.write_to_file(
+                write_results.testing_output_lines(test_outcomes),
+                prediction_testing_output_fp)
     else:
         outcome = scope_optimization.scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, n_generate, False)
-        write_results.write_to_file(write_results.feature_output_lines(outcome), feature_vector_output)
-    
+
+        feature_vector_output_fp = join(output_dir,
+                                        'feature_vector_output.txt')
+        write_results.write_to_file(
+                write_results.feature_output_lines(outcome),
+                feature_vector_output_fp)
 
 def mask_testing(problem_data, masks, vector_model, score_predictions_function, feature_vector, ordering_tag=None):
     train_mask, test_mask = masks
