@@ -6,10 +6,13 @@ class ActionVectorGenerator(VectorGenerator):
     def __init__(self, group_actions):
         self.group_actions = group_actions
 
-    def generate_vectors(self, outcomes):
-        return [self.generate_action_vector(outcome) for outcome in outcomes]
-        
-    def generate_action_vector(self, outcome):
+    def generate_vectors(self, outcomes, n_generate):
+        vectors = []
+        for outcome in outcomes:
+            vectors += self.generate_action_vector(outcome, n_generate)
+        return vectors
+
+    def generate_action_vector(self, outcome, n_generate):
         def std_dev_dists(value_list):
             value_list = np.array(value_list)
             avg = np.mean(value_list)
@@ -18,8 +21,8 @@ class ActionVectorGenerator(VectorGenerator):
             dists = [(s-avg)/std for s in value_list]
             return dists
         
-        feature_vector = FeatureVector(outcome.feature_vector.get_record_list()[:])
-        
+        feature_vector = outcome.feature_vector
+
         feature_abundances = [record.get_abundance() for record in feature_vector.get_record_list()]
         feature_scores = outcome.feature_scores
         
@@ -27,12 +30,17 @@ class ActionVectorGenerator(VectorGenerator):
         score_deviations = std_dev_dists(feature_scores)
         action_scores = [[action.score(abundance_deviations[i], score_deviations[i], feature_vector.get_record_list()[i]) for i in range(len(feature_vector.get_record_list()))]
                           for action in self.group_actions]
-        action_selections = self.stochastic_action_selection(action_scores)
-        for feature_index in range(len(action_selections)):
-            if action_selections[feature_index] != None:
-                action_selections[feature_index].apply(feature_index, feature_vector)
         
-        return feature_vector
+        feature_vectors = []
+        for i in range(n_generate):
+            new_feature_vector = FeatureVector(feature_vector.get_record_list()[:])
+            action_selections = self.stochastic_action_selection(action_scores)
+            for feature_index in range(len(action_selections)):
+                if action_selections[feature_index] != None:
+                    action_selections[feature_index].apply(feature_index, new_feature_vector)
+            feature_vectors.append(new_feature_vector)
+ 
+        return feature_vectors
         
     def stochastic_action_selection(self, action_scores):
         def normalize_scores(scores, exclude_list):
