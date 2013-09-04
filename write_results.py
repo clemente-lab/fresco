@@ -1,3 +1,5 @@
+import numpy as np
+
 def write_to_file(lines, filepath):
     f = open(filepath, 'w')
     for line in lines:
@@ -30,14 +32,17 @@ def feature_output_lines(outcome):
         
     return lines
     
-def outcome_output_lines(outcomes):
+def testing_output_lines(testing_output):
     lines = []
     
-    header = ("PREDICTION_QUALITY_SCORE",)
+    header = ("ITERATION", "AVG_PREDICTION_SCORE", "STD_DEV_PREDICTION_SCORE")
     properties = [header]
 
-    for outcome in outcomes:
-        properties.append( (outcome.prediction_quality,) ) 
+    for iteration in range(len(testing_output)):
+        results = np.array(testing_output[iteration])
+        avg = np.mean(results)
+        std = np.std(results)
+        properties.append( (iteration, avg, std) ) 
 
     for prop in properties:
         line = ""
@@ -45,6 +50,6 @@ def outcome_output_lines(outcomes):
             line += str(prop[i])
             if i != len(prop) - 1:
                 line += "\t"
-            lines.append(line)
+        lines.append(line)
             
     return lines
