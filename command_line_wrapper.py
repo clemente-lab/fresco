@@ -109,7 +109,7 @@ def stitch_avg_outcome(outcome_list, masks):
     predictions = prediction_lists[:][0]
     feature_records = [feature_list[0] for feature_list in feature_record_lists]
     feature_vector = FeatureVector(feature_records)
-    average_prediction_score = sum([outcome.prediction_quality for outcome in outcome_list])
+    average_prediction_score = float(sum([outcome.prediction_quality for outcome in outcome_list]))/len(outcome_list)
    
     avg_outcome = ModelOutcome(feature_vector, average_feature_scores, average_prediction_score, predictions)
     return avg_outcome
