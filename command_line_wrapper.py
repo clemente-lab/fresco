@@ -55,11 +55,12 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
         mask_results = []
         for iteration in range(len(iteration_outcomes)):
             for mask_index in range(len(masks)):
-                functions.append( (mask_testing, (problem_data, masks[mask_index], vector_model, score_predictions_function, xfold_feature_vectors[iteration][mask_index], iteration)) )
+                functions.append( (mask_testing, (problem_data, masks[mask_index], vector_model, score_predictions_function, xfold_feature_vectors[iteration][mask_index], (iteration, mask_index))) )
         parallel_processing.multiprocess_functions(functions, mask_results.append, n_processes)
-        test_outcomes = [[] for i in range(n_iterations)]
-        for iteration, mask_result in mask_results:
-            test_outcomes[iteration].append(mask_result)
+        test_outcomes = [[None for x in range(len(masks))] for i in range(n_iterations)]
+        for tag, mask_result in mask_results:
+            iteration, mask_index = tag
+            test_outcomes[iteration][mask_index] = mask_result
 
         prediction_testing_output_fp = join(output_dir,
                                             'prediction_testing_output.txt')
