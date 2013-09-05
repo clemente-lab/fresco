@@ -21,7 +21,7 @@ minerva_job_format = """#!/bin/sh -e
 cd $PBS_O_WORKDIR
 module load scikit-learn/0.14.1
 rm -rf %(tmp_out_dir)s
-fresco.py --group_map_files %(otu_map_list_fp)s --mapping_file %(map_fp)s --prediction_field %(category)s --start_level %(start_level)d --n_procs %(num_processes)d --model %(model)s --output_dir %(tmp_out_dir)s
+fresco --group_map_files %(otu_map_list_fp)s --mapping_file %(map_fp)s --prediction_field %(category)s --start_level %(start_level)d --n_procs %(num_processes)d --model %(model)s --output_dir %(tmp_out_dir)s
 mv %(tmp_out_dir)s %(out_dir)s
 """
 
