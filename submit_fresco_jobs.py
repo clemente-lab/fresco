@@ -135,5 +135,7 @@ for study in studies:
 
                     job_script_f.write(formatted_job_str)
 
-                run_command('qsub %s' % job_script_fp)
+                cmd = 'qsub %s' % job_script_fp
+                print 'Running: %s' % cmd
+                run_command(cmd)
                 sleep(sleep_time)
