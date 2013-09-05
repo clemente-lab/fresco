@@ -1,5 +1,8 @@
+import logging
 from os import makedirs
 from os.path import exists, join
+from time import time
+
 import scope_optimization
 import utils
 import parse_input_files
@@ -21,6 +24,14 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
                                   n_processes, output_dir, n_trials):
     if not exists(output_dir):
         makedirs(output_dir)
+
+    log_fp = join(output_dir, 'info.log')
+    logging.basicConfig(filename=log_fp, filemode='w', level=logging.DEBUG,
+                        format='%(asctime)s\t%(levelname)s\t%(message)s')
+    logging.info('Started feature vector optimization process for \'%s\' '
+                 'model' % model)
+    start_time = time()
+
     feature_vector_output_fp = join(output_dir,
                                     'feature_vector_output.txt')
 
@@ -69,6 +80,12 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
         write_results.write_to_file(
                 write_results.feature_output_lines(outcome),
                 feature_vector_output_fp)
+
+    end_time = time()
+    elapsed_time = end_time - start_time
+    logging.info('Finished feature vector optimization process for \'%s\' '
+                 'model' % model)
+    logging.info('Total elapsed time (in seconds): %d' % elapsed_time)
 
 def mask_testing(problem_data, masks, vector_model, score_predictions_function, feature_vector, ordering_tag=None):
     train_mask, test_mask = masks
