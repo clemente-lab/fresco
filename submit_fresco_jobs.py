@@ -22,7 +22,7 @@ cd $PBS_O_WORKDIR
 module load scikit-learn/0.14.1
 rm -rf %(tmp_out_dir)s
 python fresco.py --group_map_files %(otu_map_list_fp)s --mapping_file %(map_fp)s --prediction_field %(category)s --start_level %(start_level)d --n_procs %(num_processes)d --model %(model)s --output_dir %(tmp_out_dir)s
-mv %(tmp_out_dir)s %(out_dir)
+mv %(tmp_out_dir)s %(out_dir)s
 """
 
 class ExternalCommandFailedError(Exception):
@@ -49,11 +49,13 @@ def run_command(cmd):
                                                               stdout, stderr))
 
 
-if len(sys.argv) != 2:
-    sys.stderr.write("Usage: submit_fresco_jobs.py <start level>\n")
+if len(sys.argv) != 4:
+    sys.stderr.write("Usage: submit_fresco_jobs.py <input directory> "
+                     "<output directory> <start level>\n")
     sys.exit(1)
 
-start_level = int(sys.argv[1])
+in_dir, out_dir, start_level = sys.argv[1:]
+start_level = int(start_level)
 
 studies = {
     'study_451': ['DIET', 'TREATMENT']
@@ -61,8 +63,6 @@ studies = {
 
 models = ['lr', 'rf', 'sv']
 
-in_dir = 'studies'
-out_dir = 'fresco_out'
 jobs_dir = join(out_dir, 'jobs')
 map_filename = 'map.txt'
 otu_map_dir_wc = 'ucrc_*'
@@ -98,12 +98,13 @@ for study in studies:
         sys.exit(1)
 
     otu_map_list_fp = join(out_study_dir, otu_map_list_filename)
-    with open(otu_map_list_fp, 'w') as otu_map_list_f:
-        for otu_map_fp in otu_map_fps:
-            otu_map_list_f.write(otu_map_fp + '\n')
 
-    categories = studies[study]
-    for category in categories:
+    if not exists(otu_map_list_fp):
+        with open(otu_map_list_fp, 'w') as otu_map_list_f:
+            for otu_map_fp in otu_map_fps:
+                otu_map_list_f.write(otu_map_fp + '\n')
+
+    for category in studies[study]:
         out_cat_dir = join(out_study_dir, category)
         create_dir(out_cat_dir)
 
@@ -134,6 +135,5 @@ for study in studies:
 
                     job_script_f.write(formatted_job_str)
 
-                #run_command('qsub %s' % job_script_fp)
-                print 'qsub %s' % job_script_fp
+                run_command('qsub %s' % job_script_fp)
                 sleep(sleep_time)
