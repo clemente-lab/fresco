@@ -27,7 +27,7 @@ mv %(tmp_out_dir)s %(out_dir)s
 
 def main():
     if len(sys.argv) != 4:
-        sys.stderr.write("Usage: submit_fresco_jobs.py <input directory> "
+        sys.stderr.write("Usage: submit-fresco-jobs <input directory> "
                          "<output directory> <start level>\n")
         sys.exit(1)
 
