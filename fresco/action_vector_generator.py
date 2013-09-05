@@ -35,7 +35,7 @@ class ActionVectorGenerator(VectorGenerator):
         for i in range(n_generate):
             new_feature_vector = FeatureVector(feature_vector.get_record_list()[:])
             action_selections = self.stochastic_action_selection(action_scores)
-            for feature_index in range(len(action_selections)):
+            for feature_index in reversed(range(len(action_selections))):
                 if action_selections[feature_index] != None:
                     action_selections[feature_index].apply(feature_index, new_feature_vector)
             feature_vectors.append(new_feature_vector)

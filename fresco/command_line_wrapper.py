@@ -1,5 +1,7 @@
+import logging
 from os import makedirs
 from os.path import exists, join
+from time import time
 from sklearn.cross_validation import KFold
 
 from fresco.scope_optimization import scope_optimization
@@ -23,6 +25,14 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
                                   n_processes, output_dir, n_trials):
     if not exists(output_dir):
         makedirs(output_dir)
+
+    log_fp = join(output_dir, 'info.log')
+    logging.basicConfig(filename=log_fp, filemode='w', level=logging.DEBUG,
+                        format='%(asctime)s\t%(levelname)s\t%(message)s')
+    logging.info('Started feature vector optimization process for \'%s\' '
+                 'model' % model)
+    start_time = time()
+
     feature_vector_output_fp = join(output_dir,
                                     'feature_vector_output.txt')
 
@@ -46,11 +56,12 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
         mask_results = []
         for iteration in range(len(iteration_outcomes)):
             for mask_index in range(len(masks)):
-                functions.append( (mask_testing, (problem_data, masks[mask_index], vector_model, score_predictions_function, xfold_feature_vectors[iteration][mask_index], iteration)) )
+                functions.append( (mask_testing, (problem_data, masks[mask_index], vector_model, score_predictions_function, xfold_feature_vectors[iteration][mask_index], (iteration, mask_index))) )
         multiprocess_functions(functions, mask_results.append, n_processes)
-        test_outcomes = [[] for i in range(n_iterations)]
-        for iteration, mask_result in mask_results:
-            test_outcomes[iteration].append(mask_result)
+        test_outcomes = [[None for x in range(len(masks))] for i in range(n_iterations)]
+        for tag, mask_result in mask_results:
+            iteration, mask_index = tag
+            test_outcomes[iteration][mask_index] = mask_result
 
         prediction_testing_output_fp = join(output_dir,
                                             'prediction_testing_output.txt')
@@ -64,6 +75,12 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
     else:
         outcome = scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, n_generate, False)
         write_to_file(feature_output_lines(outcome), feature_vector_output_fp)
+
+    end_time = time()
+    elapsed_time = end_time - start_time
+    logging.info('Finished feature vector optimization process for \'%s\' '
+                 'model' % model)
+    logging.info('Total elapsed time (in seconds): %d' % elapsed_time)
 
 def mask_testing(problem_data, masks, vector_model, score_predictions_function, feature_vector, ordering_tag=None):
     train_mask, test_mask = masks
