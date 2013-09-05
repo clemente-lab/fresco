@@ -1,6 +1,6 @@
-from vector_generator import VectorGenerator
 import numpy as np
-from feature_vector import FeatureVector
+from fresco.vector_generator import VectorGenerator
+from fresco.feature_vector import FeatureVector
 
 class ActionVectorGenerator(VectorGenerator):
     def __init__(self, group_actions):

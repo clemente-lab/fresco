@@ -1,4 +1,4 @@
-import parallel_processing
+from fresco.parallel_processing import multiprocess_functions
 
 def scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, n_generate, save_iterations):
     outcome_set = [group_vector_scorer.score_feature_vector(problem_data, initial_feature_vector)]
@@ -9,7 +9,7 @@ def scope_optimization(initial_feature_vector, problem_data, group_vector_scorer
      
         testing_functions = [(group_vector_scorer.score_feature_vector, (problem_data, new_vector)) for new_vector in new_vector_set]
         result_handler = outcome_set.append
-        parallel_processing.multiprocess_functions(testing_functions, result_handler, n_processes)
+        multiprocess_functions(testing_functions, result_handler, n_processes)
         
         outcome_set.sort(key=lambda outcome:outcome.prediction_quality, reverse=True)
         outcome_set = outcome_set[:n_maintain]
