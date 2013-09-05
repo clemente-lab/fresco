@@ -1,11 +1,13 @@
+#!/usr/bin/env python
+
 import argparse
-import command_line_wrapper
+from fresco.command_line_wrapper import command_line_argument_wrapper
+from fresco.utils import get_list_accuracy
 
 settings_filepath = "fresco.config"
-import utils
 
 def main():
-    prediction_score_functions = {'ACCURACY_PROPORTION_SCORE':utils.get_list_accuracy}
+    prediction_score_functions = {'ACCURACY_PROPORTION_SCORE':get_list_accuracy}
 
     parameters = {}
 
@@ -57,7 +59,7 @@ def main():
 
     parameter_values['include_only'] = parse_sample_rules(parameter_values['include_only'])
 
-    command_line_wrapper.command_line_argument_wrapper(**parameter_values)
+    command_line_argument_wrapper(**parameter_values)
     
 def parse_sample_rules(rule_string):
     if rule_string == '':
@@ -146,4 +148,6 @@ def read_settings_file(settings_filepath, parameters):
 
     return parameter_values
 
-main()
+
+if __name__ == "__main__":
+    main()
