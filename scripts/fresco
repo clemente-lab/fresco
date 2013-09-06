@@ -17,7 +17,8 @@ def main():
     parameters["output_dir"] = {'key':'--output_dir', 'type':str, 'help': 'Directory to write results to. Results will include information about the final prediction accuracy, as well as information about the finished feature vector.'}
     parameters["prediction_field"] = {'key':'--prediction_field', 'type':str, 'help':'The name of the field in the mapping file to predict.'}
     parameters["model"] = {'key':'--model', 'type':str, 'help':'String describing the classifier to use. Select from: \"lr\" (Logistic Regression), \"rf\" (Random Forest) \"sv\" (Linear Support Vector Machine)', 'default':"lr"}
-    parameters["include_only"] = {'key':'--include_only', 'type':str, 'help': 'A string to specify the type of samples to be included in building the feature vector. Format should be a comma separated list of FIELD:VALUE pairs, where FIELD and VALUE correspond to a field name and value from samples in the mapping file', 'default':""}
+    parameters["include_only"] = {'key':'--include_only', 'type':str, 'help': 'A string specifying the samples to be included in building the feature vector. Format should be a FIELD:VALUE pair, where FIELD corresponds to the name of a mapping file field and VALUE is a comma-separated list of values in the mapping file\'s FIELD for which samples should be retained. For example, to only include samples with values of either Subject1, Subject2, or Subject3 in the SUBJECT field, you\'d supply \'SUBJECT:Subject1,Subject2,Subject3\' (without quotes).', 'default':""}
+    parameters["negate"] = {'key':'--negate', 'action':'store_true', 'help':'If supplied, negates the effect of --include_only such that the samples are excluded from the analysis instead of included.', 'default':False}
     parameters["n_processes"] = {'key':'--n_procs', 'type':int, 'help':'The number of processes to use in the optimization process.', 'default':1}
 
     # Optimization options
@@ -54,9 +55,6 @@ def main():
     for filepath_arg in filepath_args:
         parameter_values[filepath_arg] = open_file(parameter_values[filepath_arg])
     parameter_values['group_map_files'] = read_file_list(parameter_values['group_map_files'])
-
-  
-
     parameter_values['include_only'] = parse_sample_rules(parameter_values['include_only'])
 
     command_line_argument_wrapper(**parameter_values)
@@ -64,8 +62,9 @@ def main():
 def parse_sample_rules(rule_string):
     if rule_string == '':
         return None
-    pairs = [tuple(pair_string.split(":")) for pair_string in rule_string.split(",")]
-    return pairs
+    else:
+        field, value = rule_string.split(':')
+        return field, value.split(',')
 
 def evaluate_string_lookups(lookup_pairs, parameter_values):
     try:
@@ -91,11 +90,24 @@ def read_file_list(file_list_file):
 def get_commandline_parameters(parameters, description):
     parser = argparse.ArgumentParser(description=description)
 
-    for key in parameters.keys():
-        if 'default' in parameters[key].keys():
-            parser.add_argument(parameters[key]['key'], help=parameters[key]['help'], type=parameters[key]['type'], default=parameters[key]['default'], dest=key)
-        else:    
-            parser.add_argument(parameters[key]['key'], help=parameters[key]['help'], type=parameters[key]['type'], dest=key, required=True)
+    for param_name, param in parameters.items():
+        argparse_args = {}
+        argparse_args['help'] = param['help']
+        argparse_args['dest'] = param_name
+
+        if 'type' in param:
+            argparse_args['type'] = param['type']
+
+        if 'action' in param:
+            argparse_args['action'] = param['action']
+
+        if 'default' in param:
+            argparse_args['default'] = param['default']
+        else:
+            argparse_args['required'] = True
+
+        parser.add_argument(param['key'], **argparse_args)
+
     parser.add_argument('--generate_settings_file', help='Generate a blank settings file', action='store_true', dest='generate_settings_file')
 
     args = parser.parse_args()
