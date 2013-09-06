@@ -128,7 +128,7 @@ def stitch_avg_outcome(outcome_list, masks):
 
 
 def build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, n_processes):
-        #For each scope, build a map from group to object and vice versa
+    #For each scope, build a map from group to object and vice versa
     group_to_object = []
     object_to_group = []
     for map_file in group_map_files:
