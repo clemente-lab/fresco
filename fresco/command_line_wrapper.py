@@ -2,20 +2,21 @@ import logging
 from os import makedirs
 from os.path import exists, join
 from time import time
-
-import scope_optimization
-import utils
-import parse_input_files
-from feature_vector import FeatureRecord, FeatureVector
-from group_problem_data import ProblemData
-from group_vector_model import GroupVectorModel
-from score_group_vector import CrossValidationGroupVectorScorer
-from action_vector_generator import ActionVectorGenerator, SplitAction, MergeAction, DeleteAction
-import write_results
-import parallel_processing
 from sklearn.cross_validation import KFold
-from model_outcome import ModelOutcome
 
+from fresco.scope_optimization import scope_optimization
+from fresco.utils import parse_model_string, parse_object_string_sample
+from fresco.parse_input_files import read_split_file, read_mapping_file
+from fresco.feature_vector import FeatureRecord, FeatureVector
+from fresco.group_problem_data import ProblemData
+from fresco.group_vector_model import GroupVectorModel
+from fresco.score_group_vector import CrossValidationGroupVectorScorer
+from fresco.action_vector_generator import (ActionVectorGenerator, SplitAction,
+                                            MergeAction, DeleteAction)
+from fresco.write_results import (write_to_file, testing_output_lines,
+                                  feature_output_lines)
+from fresco.parallel_processing import multiprocess_functions
+from fresco.model_outcome import ModelOutcome
 
 def command_line_argument_wrapper(model, n_iterations, group_map_files, start_level, mapping_file, prediction_field, include_only,
                                   n_maintain, n_generate, score_predictions_function, split_abun_coef, split_score_coef, merge_abun_coef,
@@ -35,7 +36,7 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
     feature_vector_output_fp = join(output_dir,
                                     'feature_vector_output.txt')
 
-    vector_model = GroupVectorModel(utils.parse_model_string(model))
+    vector_model = GroupVectorModel(parse_model_string(model))
     group_vector_scorer = CrossValidationGroupVectorScorer(score_predictions_function, vector_model, n_cross_folds)
     problem_data, initial_feature_vector = build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, n_processes)
     group_actions = [SplitAction(problem_data, split_proportion, split_abun_coef, split_score_coef),
@@ -48,7 +49,7 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
         masks = [(train, test) for train, test in KFold(problem_data.get_n_samples(), n_folds=n_trials, indices=False)]
         for train_mask, test_mask in masks:
             problem_data.set_mask(train_mask)
-            iteration_outcomes = scope_optimization.scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, n_generate, True)
+            iteration_outcomes = scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, n_generate, True)
             for iteration in range(len(iteration_outcomes)):
                 xfold_feature_vectors[iteration].append(iteration_outcomes[iteration].feature_vector)
         functions = []
@@ -56,7 +57,7 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
         for iteration in range(len(iteration_outcomes)):
             for mask_index in range(len(masks)):
                 functions.append( (mask_testing, (problem_data, masks[mask_index], vector_model, score_predictions_function, xfold_feature_vectors[iteration][mask_index], (iteration, mask_index))) )
-        parallel_processing.multiprocess_functions(functions, mask_results.append, n_processes)
+        multiprocess_functions(functions, mask_results.append, n_processes)
         test_outcomes = [[None for x in range(len(masks))] for i in range(n_iterations)]
         for tag, mask_result in mask_results:
             iteration, mask_index = tag
@@ -64,23 +65,16 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
 
         prediction_testing_output_fp = join(output_dir,
                                             'prediction_testing_output.txt')
-        write_results.write_to_file(
-                write_results.testing_output_lines(test_outcomes),
-                prediction_testing_output_fp)
+        write_to_file(testing_output_lines(test_outcomes),
+                      prediction_testing_output_fp)
         
         avg_outcome = stitch_avg_outcome(test_outcomes[-1], masks)
 
-        write_results.write_to_file(
-                write_results.feature_output_lines(avg_outcome),
-                feature_vector_output_fp)
-
-
+        write_to_file(feature_output_lines(avg_outcome),
+                      feature_vector_output_fp)
     else:
-        outcome = scope_optimization.scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, n_generate, False)
-
-        write_results.write_to_file(
-                write_results.feature_output_lines(outcome),
-                feature_vector_output_fp)
+        outcome = scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, n_generate, False)
+        write_to_file(feature_output_lines(outcome), feature_vector_output_fp)
 
     end_time = time()
     elapsed_time = end_time - start_time
@@ -138,7 +132,7 @@ def build_problem_data(group_map_files, mapping_file, prediction_field, start_le
     group_to_object = []
     object_to_group = []
     for map_file in group_map_files:
-        g_to_o, o_to_g = parse_input_files.read_split_file(map_file)
+        g_to_o, o_to_g = read_split_file(map_file)
         group_to_object.append(g_to_o)
         object_to_group.append(o_to_g)
 
@@ -148,11 +142,11 @@ def build_problem_data(group_map_files, mapping_file, prediction_field, start_le
     for grp in group_to_object[start_level]:
         l = group_to_object[start_level][grp]
         for obj in l:
-            samplenames.add(utils.parse_object_string_sample(obj))
+            samplenames.add(parse_object_string_sample(obj))
     samplenames = list(samplenames)
 
     #get a map of sample name to it's properties
-    samplemap = parse_input_files.read_mapping_file(mapping_file)
+    samplemap = read_mapping_file(mapping_file)
     sample_to_response = dict([(samplename, samplemap[samplename][prediction_field]) for samplename in samplenames
               if include_only == None or all([samplemap[samplename][include_only[i][0]] == [include_only[i][1]] for i in range(len(include_only))])])
     

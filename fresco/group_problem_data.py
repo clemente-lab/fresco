@@ -1,7 +1,7 @@
-from feature_vector import FeatureRecord
 import numpy as np
-from utils import parse_object_string_sample
-import parallel_processing
+from fresco.feature_vector import FeatureRecord
+from fresco.utils import parse_object_string_sample
+from fresco.parallel_processing import multiprocess_functions
 
 class ProblemData:
 	def __init__(self, group_to_object, object_to_group, sample_to_response, n_processes, parse_object_sample=parse_object_string_sample, mask=None):
@@ -48,7 +48,7 @@ class ProblemData:
 		results = []
 		for scope in range(len(group_to_object)):
 			functions.append( (build_scope_columns_records_splits, (scope, group_to_object, sample_indeces)) )
-		parallel_processing.multiprocess_functions(functions, results.append, n_processes)
+		multiprocess_functions(functions, results.append, n_processes)
 		
 		for feature_columns, feature_records, scope_map in results:
 			self.feature_columns.update(feature_columns)	

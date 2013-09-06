@@ -1,6 +1,6 @@
-import group_vector_model
 from sklearn.cross_validation import KFold
-import model_outcome
+from fresco.group_vector_model import build_sample_matrix
+from fresco.model_outcome import ModelOutcome
 
 class GroupVectorScorer:
     def score_feature_vector(self, problem_data, feature_vector):
@@ -13,7 +13,7 @@ class CrossValidationGroupVectorScorer(GroupVectorScorer):
         self.n_cross_folds = n_cross_folds
         
     def score_feature_vector(self, problem_data, feature_vector):
-        X = group_vector_model.build_sample_matrix(problem_data, feature_vector)
+        X = build_sample_matrix(problem_data, feature_vector)
     
         masks = KFold(len(problem_data.get_response_variables()), n_folds=self.n_cross_folds, indices=False)
     
@@ -27,4 +27,4 @@ class CrossValidationGroupVectorScorer(GroupVectorScorer):
         prediction_quality = self.prediction_scoring_function(problem_data.get_response_variables(), predictions)
         feature_scores = sum(feature_score_lists)/len(feature_score_lists)
           
-        return model_outcome.ModelOutcome(feature_vector, feature_scores, prediction_quality, predictions)
+        return ModelOutcome(feature_vector, feature_scores, prediction_quality, predictions)
