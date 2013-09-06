@@ -35,7 +35,8 @@ def main():
     start_level = int(start_level)
 
     studies = {
-        'study_451': ['DIET', 'TREATMENT']
+        'study_451': ['DIET', 'TREATMENT'],
+        'study_550': ['HOST_INDIVIDUAL', 'BODY_HABITAT', 'COMMON_SAMPLE_SITE']
     }
 
     models = ['lr', 'rf', 'sv']
