@@ -16,16 +16,17 @@ def main():
     parameters["group_map_files"] = {'key':'--group_map_files', 'type':str, 'help':'Filepath to a file containing one group map filepath per line. These filepaths should be in order from largest groups to smallest groups. For example, 61%%, 94%%, and 99%% OTU maps.'}
     parameters["output_dir"] = {'key':'--output_dir', 'type':str, 'help': 'Directory to write results to. Results will include information about the final prediction accuracy, as well as information about the finished feature vector.'}
     parameters["prediction_field"] = {'key':'--prediction_field', 'type':str, 'help':'The name of the field in the mapping file to predict.'}
-    parameters["include_only"] = {'key':'--include_only', 'type':str, 'help': 'A string to specify the type of samples to be included in building the feature vector. Format should be a comma separated list of FIELD:VALUE pairs, where FIELD and VALUE correspond to a field name and value from samples in the mapping file', 'default':""}
+    parameters["model"] = {'key':'--model', 'type':str, 'help':'String describing the classifier to use. Select from: \"lr\" (Logistic Regression), \"rf\" (Random Forest) \"sv\" (Linear Support Vector Machine)', 'default':"lr"}
+    parameters["include_only"] = {'key':'--include_only', 'type':str, 'help': 'A string specifying the samples to be included in building the feature vector. Format should be a FIELD:VALUE pair, where FIELD corresponds to the name of a mapping file field and VALUE is a comma-separated list of values in the mapping file\'s FIELD for which samples should be retained. For example, to only include samples with values of either Subject1, Subject2, or Subject3 in the SUBJECT field, you\'d supply \'SUBJECT:Subject1,Subject2,Subject3\' (without quotes).', 'default':""}
+    parameters["negate"] = {'key':'--negate', 'action':'store_true', 'help':'If supplied, negates the effect of --include_only such that the samples are excluded from the analysis instead of included.', 'default':False}
     parameters["n_processes"] = {'key':'--n_procs', 'type':int, 'help':'The number of processes to use in the optimization process.', 'default':1}
 
     # Optimization options
-    parameters["n_iterations"] = {'key':'--n_iterations', 'type':int, 'help':'Number of iterations to make in optimizing the feature vector', 'default':10}
     parameters["start_level"] = {'key':'--start_level', 'type':int, 'help':'The index of the group map file at which all features will start (uses zero-based indexing)', 'default':0}
+    parameters["n_iterations"] = {'key':'--n_iterations', 'type':int, 'help':'Number of iterations to make in optimizing the feature vector', 'default':15}
+    parameters["n_maintain"] = {'key':'--n_maintain', 'type':int, 'help':'The number of feature vectors to be saved every iteration. For example, for --n_maintain 2, the top 2 scoring models will be saved every iteration.', 'default':4}
+    parameters["n_generate"] = {'key':'--n_generate', 'type':int, 'help':'The number of feature vectors to be generated from each vector every iteration. For example, for --n_maintain 2 and --n_generate 3, the maxiumum number of vectors to be generated and assessed every iteration is 6.', 'default':7}
     parameters["n_trials"] = {'key':'--n_trials', 'type':int, 'help':'Used for testing functionality, this parameter defines the number of cross folds to use. To omit testing and only generate the optimized feature vector, use value 0.', 'default':5}
-    parameters["n_maintain"] = {'key':'--n_maintain', 'type':int, 'help':'The number of feature vectors to be saved every iteration. For example, for --n_maintain 2, the top 2 scoring models will be saved every iteration.', 'default':1}
-    parameters["n_generate"] = {'key':'--n_generate', 'type':int, 'help':'The number of feature vectors to be generated from each vector every iteration. For example, for --n_maintain 2 and --n_generate 3, the maxiumum number of vectors to be generated and assessed every iteration is 6.', 'default':1}
-    parameters["model"] = {'key':'--model', 'type':str, 'help':'String describing the classifier to use. Select from: \"lr\" (Logistic Regression), \"rf\" (Random Forest) \"sv\" (Linear Support Vector Machine)', 'default':"lr"}
     parameters["n_cross_folds"] = {'key':'--n_cross_folds', 'type':int, 'help':'The number of cross folds to use in measuring the effectiveness of a split/merge selection set internally.', 'default':5}
     
     # Functional options
@@ -34,10 +35,10 @@ def main():
     # Conditional options
     parameters["split_score_coef"] = {'key':'--spliting_score_coef', 'type':float, 'help':'The coeficient on the deviation of the feature score in calculating split score, for use in the DEVIATION_SCORE split scoring function.', 'default':-2}
     parameters["split_abun_coef"] = {'key':'--spliting_abun_coef', 'type':float, 'help':'The coeficient on the deviation of the feature abundance in calculating split score, for use in the DEVIATION_SCORE split scoring function.', 'default':1}
-    parameters["split_proportion"] = {'key':'--spliting_proportion', 'type':float, 'help':'The proportion of the feature vector to be split every iteration', 'default':.025}
+    parameters["split_proportion"] = {'key':'--spliting_proportion', 'type':float, 'help':'The proportion of the feature vector to be split every iteration', 'default':0.05}
     parameters["merge_score_coef"] = {'key':'--merging_score_coef', 'type':float, 'help':'The coeficient on the deviation of the feature score in calculating merge score, for use in the DEVIATION_SCORE merge scoring function.', 'default':-2}
     parameters["merge_abun_coef"] = {'key':'--merging_abun_coef', 'type':float, 'help':'The coeficient on the deviation of the feature abundance in calculating merge score, for use in the DEVIATION_SCORE merge scoring function.', 'default':-1}
-    parameters["merge_proportion"] = {'key':'--merging_proportion', 'type':float, 'help':'The proportion of the feature vector to be merged every iteration', 'default':.025}
+    parameters["merge_proportion"] = {'key':'--merging_proportion', 'type':float, 'help':'The proportion of the feature vector to be merged every iteration', 'default':0.05}
     parameters["delete_score_coef"] = {'key':'--deletion_score_coef', 'type':float, 'help':'The coeficient on the deviation of the feature score in calculating deletion score, for use in the DEVIATION_SCORE deletion scoring function.', 'default':0}
     parameters["delete_abun_coef"] = {'key':'--deletion_abun_coef', 'type':float, 'help':'The coeficient on the deviation of the feature abundance in calculating deletion score, for use in the DEVIATION_SCORE deletion scoring function.', 'default':0}
     parameters["delete_proportion"] = {'key':'--deletion_proportion', 'type':float, 'help':'The proportion of the feature vector to be deleted every iteration.', 'default':0}
@@ -54,9 +55,6 @@ def main():
     for filepath_arg in filepath_args:
         parameter_values[filepath_arg] = open_file(parameter_values[filepath_arg])
     parameter_values['group_map_files'] = read_file_list(parameter_values['group_map_files'])
-
-  
-
     parameter_values['include_only'] = parse_sample_rules(parameter_values['include_only'])
 
     command_line_argument_wrapper(**parameter_values)
@@ -64,8 +62,9 @@ def main():
 def parse_sample_rules(rule_string):
     if rule_string == '':
         return None
-    pairs = [tuple(pair_string.split(":")) for pair_string in rule_string.split(",")]
-    return pairs
+    else:
+        field, value = rule_string.split(':')
+        return field, value.split(',')
 
 def evaluate_string_lookups(lookup_pairs, parameter_values):
     try:
@@ -91,11 +90,24 @@ def read_file_list(file_list_file):
 def get_commandline_parameters(parameters, description):
     parser = argparse.ArgumentParser(description=description)
 
-    for key in parameters.keys():
-        if 'default' in parameters[key].keys():
-            parser.add_argument(parameters[key]['key'], help=parameters[key]['help'], type=parameters[key]['type'], default=parameters[key]['default'], dest=key)
-        else:    
-            parser.add_argument(parameters[key]['key'], help=parameters[key]['help'], type=parameters[key]['type'], dest=key, required=True)
+    for param_name, param in parameters.items():
+        argparse_args = {}
+        argparse_args['help'] = param['help']
+        argparse_args['dest'] = param_name
+
+        if 'type' in param:
+            argparse_args['type'] = param['type']
+
+        if 'action' in param:
+            argparse_args['action'] = param['action']
+
+        if 'default' in param:
+            argparse_args['default'] = param['default']
+        else:
+            argparse_args['required'] = True
+
+        parser.add_argument(param['key'], **argparse_args)
+
     parser.add_argument('--generate_settings_file', help='Generate a blank settings file', action='store_true', dest='generate_settings_file')
 
     args = parser.parse_args()

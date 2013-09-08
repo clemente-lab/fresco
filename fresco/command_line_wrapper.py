@@ -18,12 +18,13 @@ from fresco.write_results import (write_to_file, testing_output_lines,
 from fresco.parallel_processing import multiprocess_functions
 from fresco.model_outcome import ModelOutcome
 
-def command_line_argument_wrapper(model, n_iterations, group_map_files, start_level, mapping_file, prediction_field, include_only,
-                                  n_maintain, n_generate, score_predictions_function, split_abun_coef, split_score_coef, merge_abun_coef,
-                                  merge_score_coef, delete_abun_coef, delete_score_coef,
-                                  split_proportion, merge_proportion, delete_proportion, n_cross_folds,
-                                  n_processes, output_dir, n_trials):
+def command_line_argument_wrapper(model, n_iterations, group_map_files,
+        start_level, mapping_file, prediction_field, include_only, negate,
+        n_maintain, n_generate, score_predictions_function, split_abun_coef,
+        split_score_coef, merge_abun_coef, merge_score_coef, delete_abun_coef,
+        delete_score_coef, split_proportion, merge_proportion,
     """
+        delete_proportion, n_cross_folds, n_processes, output_dir, n_trials):
     Sets up and executes scope optimization on a given problem, runs testing, and writes to files.
     
     Builds the data structures and objects that are used by fresco.scope_optimization from
@@ -89,7 +90,7 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files, start_le
 
     vector_model = GroupVectorModel(parse_model_string(model))
     group_vector_scorer = CrossValidationGroupVectorScorer(score_predictions_function, vector_model, n_cross_folds)
-    problem_data, initial_feature_vector = build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, n_processes)
+    problem_data, initial_feature_vector = build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, negate, n_processes)
     group_actions = [SplitAction(problem_data, split_proportion, split_abun_coef, split_score_coef),
                      MergeAction(problem_data, merge_proportion, merge_abun_coef, merge_score_coef),
                      DeleteAction(problem_data, delete_proportion, delete_abun_coef, delete_score_coef)]
@@ -177,8 +178,9 @@ def stitch_avg_outcome(outcome_list, masks):
     avg_outcome = ModelOutcome(feature_vector, average_feature_scores, average_prediction_score, predictions)
     return avg_outcome
 
-def build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, n_processes):
-        #For each scope, build a map from group to object and vice versa
+def build_problem_data(group_map_files, mapping_file, prediction_field,
+                       start_level, include_only, negate, n_processes):
+    #For each scope, build a map from group to object and vice versa
     group_to_object = []
     object_to_group = []
     for map_file in group_map_files:
@@ -197,13 +199,17 @@ def build_problem_data(group_map_files, mapping_file, prediction_field, start_le
 
     #get a map of sample name to it's properties
     samplemap = read_mapping_file(mapping_file)
-    sample_to_response = dict([(samplename, samplemap[samplename][prediction_field]) for samplename in samplenames
-              if include_only == None or all([samplemap[samplename][include_only[i][0]] == [include_only[i][1]] for i in range(len(include_only))])])
-    
+
+    sample_to_response = {}
+    for samplename in samplenames:
+        if (include_only is None or
+            ((samplemap[samplename][include_only[0]] in include_only[1]) ^ negate)):
+            sample_to_response[samplename] = samplemap[samplename][prediction_field]
+
     problem_data = ProblemData(group_to_object, object_to_group, sample_to_response, n_processes)
 
     feature_vector = FeatureVector([FeatureRecord(group, start_level,
                                                   len(group_to_object[start_level][group]))
                                     for group in group_to_object[start_level].keys()])
-    
+
     return problem_data, feature_vector
