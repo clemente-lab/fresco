@@ -3,16 +3,17 @@ from fresco.vector_generator import VectorGenerator
 from fresco.feature_vector import FeatureVector
 
 class ActionVectorGenerator(VectorGenerator):
-    def __init__(self, group_actions):
+    def __init__(self, group_actions, n_generate):
         self.group_actions = group_actions
+        self.n_generate = n_generate
 
-    def generate_vectors(self, outcomes, n_generate):
+    def generate_vectors(self, outcomes):
         vectors = []
         for outcome in outcomes:
-            vectors += self.generate_action_vector(outcome, n_generate)
+            vectors += self.generate_action_vector(outcome)
         return vectors
 
-    def generate_action_vector(self, outcome, n_generate):
+    def generate_action_vector(self, outcome):
         def std_dev_dists(value_list):
             value_list = np.array(value_list)
             avg = np.mean(value_list)
@@ -32,7 +33,7 @@ class ActionVectorGenerator(VectorGenerator):
                           for action in self.group_actions]
         
         feature_vectors = []
-        for i in range(n_generate):
+        for i in range(self.n_generate):
             new_feature_vector = FeatureVector(feature_vector.get_record_list()[:])
             action_selections = self.stochastic_action_selection(action_scores)
             for feature_index in reversed(range(len(action_selections))):

@@ -10,7 +10,7 @@ def feature_output_lines(outcome):
     lines = []
     
     feature_vector = outcome.feature_vector
-    
+
     rec_list = feature_vector.get_record_list()
     populations = [record.get_abundance() for record in rec_list]    
     pred_scores = outcome.feature_scores
