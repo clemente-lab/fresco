@@ -23,8 +23,9 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
         n_maintain, n_generate, score_predictions_function, split_abun_coef,
         split_score_coef, merge_abun_coef, merge_score_coef, delete_abun_coef,
         delete_score_coef, split_proportion, merge_proportion,
-    """
         delete_proportion, n_cross_folds, n_processes, output_dir, n_trials):
+
+    """
     Sets up and executes scope optimization on a given problem, runs testing, and writes to files.
     
     Builds the data structures and objects that are used by fresco.scope_optimization from
@@ -70,10 +71,6 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
         output_dir: The directory that the output files will be put in.
         n_trials: The number of cross folds to use in scoring the vectors returned by the
             optimization process. If 0, no testing will be performed.
-    Returns:
-        Returns nothing, but writes the results to files in output_dir:
-            feature_vector_output.txt:
-                A tab-separated file describing the final feature vector 
     """
     if not exists(output_dir):
         makedirs(output_dir)
@@ -151,33 +148,29 @@ def mask_testing(problem_data, masks, vector_model, score_predictions_function, 
         return outcome
    
 def stitch_avg_outcome(outcome_list, masks):
-    n_features = len(masks[0][0])
-    feature_record_lists = [[] for i in range(n_features)]
-    prediction_lists = [[] for i in range(n_features)]
-    feature_score_lists = [[] for i in range(n_features)]
-
-    train_indecies = [0 for outcome in outcome_list]
-    test_indecies = [0 for outcome in outcome_list]
-
-    for feature_index in range(n_features):
-        for outcome_index in range(len(outcome_list)):
-            if masks[outcome_index][0][feature_index]:
-                feature_record_lists[feature_index].append(outcome_list[outcome_index].feature_vector.get_record_list()[train_indecies[outcome_index]])
-                feature_score_lists[feature_index].append(outcome_list[outcome_index].feature_scores[train_indecies[outcome_index]])
-                train_indecies[outcome_index] += 1
-            if masks[outcome_index][1][feature_index]:
-                prediction_lists[feature_index].append(outcome_list[outcome_index].predictions[test_indecies[outcome_index]])
-                test_indecies[outcome_index] += 1
+    n_features = len(outcome_list[0].feature_vector.get_record_list())
+    n_samples = len(masks[0][0])
+    n_outcomes = len(outcome_list)
+    
+    feature_vector = outcome_list[0].feature_vector    
+    avg_prediction_score = sum([outcome.prediction_quality for outcome in outcome_list])/float(n_outcomes)
+    average_feature_scores = []
+    for i in range(n_features):
+        avg_feature_score = sum([outcome.feature_scores[i] for outcome in outcome_list])/float(n_outcomes)
+        average_feature_scores.append(avg_feature_score)
+    
+    predictions = [None for i in range(n_samples)]
+    for outcome_index in range(len(outcome_list)):
+        train_mask, test_mask = masks[outcome_index]
+        p_index = 0
+        for m_index in range(len(test_mask)):
+            if test_mask[m_index]:
+                predictions[m_index] = outcome_list[outcome_index].predictions[p_index]
+                p_index += 1
                 
-    average_feature_scores = [float(sum(score_list))/len(score_list) for score_list in feature_score_lists]
-    predictions = prediction_lists[:][0]
-    feature_records = [feature_list[0] for feature_list in feature_record_lists]
-    feature_vector = FeatureVector(feature_records)
-    average_prediction_score = float(sum([outcome.prediction_quality for outcome in outcome_list]))/len(outcome_list)
-   
-    avg_outcome = ModelOutcome(feature_vector, average_feature_scores, average_prediction_score, predictions)
+    avg_outcome = ModelOutcome(feature_vector, average_feature_scores, avg_prediction_score, predictions)
     return avg_outcome
-
+   
 def build_problem_data(group_map_files, mapping_file, prediction_field,
                        start_level, include_only, negate, n_processes):
     #For each scope, build a map from group to object and vice versa
