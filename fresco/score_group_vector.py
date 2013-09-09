@@ -21,10 +21,9 @@ class CrossValidationGroupVectorScorer(GroupVectorScorer):
         feature_score_lists = []
         for mask in masks:
             self.vector_model.fit(problem_data, feature_vector, X=X, mask=mask[0])
-            predictions += self.vector_model.predict(problem_data, feature_vector, X=X, mask=mask[1])
             feature_score_lists.append(self.vector_model.get_feature_scores())
-         
+            predictions += self.vector_model.predict(problem_data, feature_vector, X=X, mask=mask[1])
+            
         prediction_quality = self.prediction_scoring_function(problem_data.get_response_variables(), predictions)
         feature_scores = sum(feature_score_lists)/len(feature_score_lists)
-          
         return ModelOutcome(feature_vector, feature_scores, prediction_quality, predictions)
