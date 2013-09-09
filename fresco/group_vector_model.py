@@ -45,13 +45,9 @@ def get_Xy(problem_data, feature_vector, X_, mask):
     X = build_sample_matrix(problem_data, feature_vector) if X_ == None else X_
     y = problem_data.get_response_variables()
     
-    print "X BF:", X.shape
-    
     if mask != None:
         X = X[mask]
         y = y[mask]
-        
-    print "X AF:", X.shape
         
     return X, y
         

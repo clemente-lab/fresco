@@ -26,6 +26,4 @@ class CrossValidationGroupVectorScorer(GroupVectorScorer):
             
         prediction_quality = self.prediction_scoring_function(problem_data.get_response_variables(), predictions)
         feature_scores = sum(feature_score_lists)/len(feature_score_lists)
-        print "LENGTH OF FEATURE SCORES:", len(feature_scores)
-        print "LENGTH OF FEATURE VECTOR:", len(feature_vector.get_record_list())
         return ModelOutcome(feature_vector, feature_scores, prediction_quality, predictions)
