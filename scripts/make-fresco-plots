@@ -43,9 +43,10 @@ def main():
                         iter_results[model] = \
                                 parse_iter_results_file(iter_results_f)
 
-                iter_plot_fp = join(level_dir, iter_plot_filename)
-                generate_iter_plot(iter_results, iter_plot_fp, study, cat,
-                                   level)
+                if len(iter_results) > 0:
+                    iter_plot_fp = join(level_dir, iter_plot_filename)
+                    generate_iter_plot(iter_results, iter_plot_fp, study, cat,
+                                       level)
 
 def get_dirs(root_dir, required_contents=None):
     if required_contents is None:
