@@ -2,6 +2,7 @@
 from __future__ import division
 
 import sys
+from collections import defaultdict
 from glob import glob
 from os.path import basename, exists, isdir, join
 
