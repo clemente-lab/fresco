@@ -152,13 +152,13 @@ def generate_thresh_plot(plot_data, output_fp, study, category):
         plot(levels, model_data[1], color=model_color, marker='--',
              label='%s, %s' % (model_name, thresh_plot_dynamic_label))
 
-        xlabel(thresh_plot_xlabel)
-        ylabel(thresh_plot_ylabel)
-        plot_title = '%s (%s, %s)' % (thresh_plot_title, study, category)
-        title(plot_title)
-        legend()
-        ylim(ymax=1.0)
-        savefig(output_fp)
+    xlabel(thresh_plot_xlabel)
+    ylabel(thresh_plot_ylabel)
+    plot_title = '%s (%s, %s)' % (thresh_plot_title, study, category)
+    title(plot_title)
+    legend()
+    ylim(ymax=1.0)
+    savefig(output_fp)
 
 
 if __name__ == "__main__":
