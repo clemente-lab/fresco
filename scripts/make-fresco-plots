@@ -150,7 +150,7 @@ def generate_thresh_plot(plot_data, output_fp, study, category):
 
         plot(levels, model_data[0], color=model_color,
              label='%s, %s' % (model_name, thresh_plot_static_label))
-        plot(levels, model_data[1], color=model_color, marker='--',
+        plot(levels, model_data[1], color=model_color, linestyle='--',
              label='%s, %s' % (model_name, thresh_plot_dynamic_label))
 
     xlabel(thresh_plot_xlabel)
