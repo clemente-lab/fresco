@@ -19,6 +19,8 @@ model_info = {
 
 otu_map_list_filename = 'otu_maps.txt'
 iter_results_filename = 'prediction_testing_output.txt'
+result_log_filename = 'info.log'
+feature_vector_filename = 'feature_vector_output.txt'
 iter_plot_filename = 'iter_plot.png'
 thresh_plot_filename = 'thresh_plot.png'
 iter_plot_title = 'Accuracy by Iterations'
@@ -45,7 +47,9 @@ def main():
                 iter_results = {}
 
                 for model_dir, model in get_dirs(level_dir,
-                                                 [iter_results_filename]):
+                                                 [iter_results_filename,
+                                                  result_log_filename,
+                                                  feature_vector_filename]):
                     iter_results_fp = join(model_dir, iter_results_filename)
 
                     with open(iter_results_fp, 'U') as iter_results_f:
