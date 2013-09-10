@@ -45,8 +45,7 @@ def main():
     
     defaults_from_settings_file(settings_filepath, parameters)
 
-    parameter_values = get_commandline_parameters(parameters, 
-                                                  'Run predictive models on variable-sized features')
+    parameter_values = get_commandline_parameters(parameters, '')
 
     lookup_pairs = [('score_predictions_function', prediction_score_functions)]
     evaluate_string_lookups(lookup_pairs, parameter_values)
