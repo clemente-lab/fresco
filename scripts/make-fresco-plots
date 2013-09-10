@@ -101,7 +101,7 @@ def generate_iter_plot(plot_data, output_fp, study, category, level):
     plot_title = '%s (%s, %s, %s)' % (iter_plot_title, study, category, level)
     title(plot_title)
     legend(loc=4)
-    ylim(ymin=1.0)
+    ylim(ymax=1.0)
     savefig(output_fp)
 
 
