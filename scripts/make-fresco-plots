@@ -67,7 +67,12 @@ def parse_iter_results_file(f):
     accuracies = []
     yerrs = []
 
+    seen_header = False
     for line in f:
+        if not seen_header:
+            seen_header = True
+            continue
+
         iteration, accuracy, yerr = map(float, line.split('\t'))
         iterations.append(iteration)
         accuracies.append(accuracy)
