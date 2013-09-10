@@ -8,7 +8,7 @@ from os.path import basename, exists, isdir, join
 from matplotlib import use
 use('Agg', warn=False)
 from matplotlib.pyplot import (errorbar, figure, legend, savefig, title,
-                               xlabel, ylabel)
+                               xlabel, ylabel, ylim)
 
 model_info = {
     'lr': ('Logistic Regression', 'r'),
@@ -90,14 +90,17 @@ def generate_iter_plot(plot_data, output_fp, study, category, level):
 
         model_name, model_color = model_info[model]
 
-        errorbar(iterations, accuracies, yerr=yerrs, color=model_color,
+        # Not plotting yerr right now until we have a different plot type
+        # (e.g., bar charts).
+        errorbar(iterations, accuracies, color=model_color,
                  label=model_name)
 
     xlabel(iter_plot_xlabel)
     ylabel(iter_plot_ylabel)
     plot_title = '%s (%s, %s, %s)' % (iter_plot_title, study, category, level)
     title(plot_title)
-    legend()
+    legend(loc=4)
+    ylim(ymin=1.0)
     savefig(output_fp)
 
 
