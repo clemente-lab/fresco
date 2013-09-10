@@ -1,3 +1,0 @@
-python otu_trees.py -ds 449 -prob HOST_INDIVIDUAL -sp .05 -mp 0 -proc 15 -model rf -d /hpc/users/xbernsr01/scratch/ > /hpc/users/xbernsr01/results/RF_449HOST_05_0.result 2> /hpc/users/xbernsr01/results/RF_449HOST_05_0.error
-python otu_trees.py -ds 449 -prob HOST_INDIVIDUAL -sp .05 -mp 0 -proc 15 -model sv -d /hpc/users/xbernsr01/scratch/ > /hpc/users/xbernsr01/results/SV_449HOST_05_0.result 2> /hpc/users/xbernsr01/results/SV_449HOST_05_0.error
-python otu_trees.py -ds 449 -prob HOST_INDIVIDUAL -sp .05 -mp 0 -proc 15 -model lr -d /hpc/users/xbernsr01/scratch/ > /hpc/users/xbernsr01/results/LR_449HOST_05_0.result 2> /hpc/users/xbernsr01/results/LR_449HOST_05_0.error
