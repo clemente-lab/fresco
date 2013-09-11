@@ -6,6 +6,31 @@ def write_to_file(lines, filepath):
         f.write(line+"\n")
     f.close()
 
+def fold_features_output_lines(fold_outcomes):
+    lines = []
+    
+    properties = []
+    for fold_index in range(len(fold_outcomes)):
+        rec_list = fold_outcomes[fold_index].feature_vector.get_record_list()
+        populations = [record.get_abundance() for record in rec_list]    
+        pred_scores = fold_outcomes[fold_index].feature_scores
+    
+        properties += sorted([(fold_index, rec_list[index].get_id(), rec_list[index].get_scope(), pred_scores[index],
+                       populations[index]) for index in range(len(rec_list))], key=lambda prop:prop[3], reverse=True)
+
+    header = ("FOLD_NUMBER", "GROUP_ID", "GROUP_SCOPE", "GROUP_SCORE", "GROUP_ABUNDANCE")
+    properties[:0] = [header]
+
+    for prop in properties:
+        line = ""
+        for i in range(len(prop)):
+            line += str(prop[i])
+            if i != len(prop) - 1:
+                line += "\t"
+        lines.append(line)
+        
+    return lines
+
 def feature_output_lines(outcome):
     lines = []
     
