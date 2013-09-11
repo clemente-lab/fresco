@@ -131,8 +131,7 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
     group_actions = [SplitAction(problem_data, split_proportion, split_abun_coef, split_score_coef),
                      MergeAction(problem_data, merge_proportion, merge_abun_coef, merge_score_coef),
                      DeleteAction(problem_data, delete_proportion, delete_abun_coef, delete_score_coef)]
-    vector_generator = ActionVectorGenerator(group_actions, n_generate)
-    
+    vector_generator = ActionVectorGenerator(group_actions, n_generate, problem_data)
 
     scope_optimization = ScopeOptimization(group_vector_scorer, vector_generator, n_processes, n_iterations, n_maintain)
 
@@ -156,7 +155,7 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
             
         feature_vector_output_fp = join(output_dir,
                                         'fold_feature_vectors_output.txt')
-        write_to_file(fold_features_output_lines(test_outcomes[-1]),
+        write_to_file(fold_features_output_lines(test_outcomes[-1], problem_data),
                       feature_vector_output_fp)
         assert isfile(feature_vector_output_fp), \
             "Output file \"%s\"was not created" %feature_vector_output_fp
@@ -166,7 +165,7 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
         
         feature_vector_output_fp = join(output_dir,
                                         'feature_vector_output.txt')
-        write_to_file(feature_output_lines(outcome), feature_vector_output_fp)
+        write_to_file(feature_output_lines(outcome, problem_data), feature_vector_output_fp)
         assert isfile(feature_vector_output_fp), \
             "Output file \"%s\"was not created" %feature_vector_output_fp
 
