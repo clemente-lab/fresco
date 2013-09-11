@@ -1,11 +1,11 @@
 import multiprocessing
 
-def multiprocess_functions(functions, result_handler, n_procs):
+def multiprocess_functions(process_definitions, result_handler, n_procs):
     processes = []
     result_queue = multiprocessing.Queue()
 
-    def function_wrapper(function, function_args, result_queue):
-        outcome = function(*function_args)
+    def function_wrapper(process_definition, result_queue):
+        outcome = process_definition.process()
         result_queue.put_nowait(outcome)
 
     def wait_for_finished(n_survivers):
@@ -21,12 +21,33 @@ def multiprocess_functions(functions, result_handler, n_procs):
                 break
         
 
-    for i in range(len(functions)):
+    for process_definition in process_definitions:
         wait_for_finished(n_procs)
 
         process = multiprocessing.Process(target = function_wrapper, args = 
-                                          (functions[i][0], functions[i][1], result_queue) )
+                                          (process_definition, result_queue) )
         processes.append(process)
         process.start()
 
     wait_for_finished(0)
+
+class ProcessDefinition(object):
+    def __init__(self, function, positional_arguments=None, keyword_arguments=None, tag=None):
+        self.function = function
+        if positional_arguments:
+            self.positional_arguments = positional_arguments
+        else:
+            self.positional_arguments = ()
+        if keyword_arguments:
+            self.keyword_arguments = keyword_arguments
+        else:
+            self.keyword_arguments = {}
+        self.tag = tag
+        
+    def process(self):
+        result = self.function(*self.positional_arguments, **self.keyword_arguments)
+        if self.tag != None:
+            return (self.tag, result)
+        else:
+            return result
+        

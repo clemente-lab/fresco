@@ -1,22 +1,23 @@
 import logging
 from os import makedirs
-from os.path import exists, join
+from os.path import exists, join, isfile
 from time import time
-from sklearn.cross_validation import KFold
+import types
 
-from fresco.scope_optimization import scope_optimization
-from fresco.utils import parse_model_string, parse_object_string_sample
-from fresco.parse_input_files import read_split_file, read_mapping_file
-from fresco.feature_vector import FeatureRecord, FeatureVector
-from fresco.group_problem_data import ProblemData
+from fresco.scope_optimization import ScopeOptimization
+from fresco.utils import parse_model_string, check_input_type, InputTypeError
+from fresco.feature_vector import FeatureVector
+from fresco.group_problem_data import ProblemData, build_problem_data
 from fresco.group_vector_model import GroupVectorModel
 from fresco.score_group_vector import CrossValidationGroupVectorScorer
 from fresco.action_vector_generator import (ActionVectorGenerator, SplitAction,
                                             MergeAction, DeleteAction)
 from fresco.write_results import (write_to_file, testing_output_lines,
-                                  feature_output_lines)
-from fresco.parallel_processing import multiprocess_functions
+                                  feature_output_lines, fold_features_output_lines)
 from fresco.model_outcome import ModelOutcome
+from score_scope_optimization import scope_optimization_cross_validation
+import inspect
+
 
 def command_line_argument_wrapper(model, n_iterations, group_map_files,
         start_level, mapping_file, prediction_field, include_only, negate,
@@ -72,6 +73,44 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
         n_trials: The number of cross folds to use in scoring the vectors returned by the
             optimization process. If 0, no testing will be performed.
     """
+    simple_var_types = [
+                 ("n_iterations", types.IntType),
+                 ("n_maintain", types.IntType),
+                 ("n_generate", types.IntType),
+                 ("n_processes", types.IntType),
+                 ("n_cross_folds", types.IntType),
+                 ("n_trials", types.IntType),
+                 ("start_level", types.IntType),
+                 ("split_score_coef", (types.IntType, types.FloatType)),
+                 ("split_abun_coef", (types.IntType, types.FloatType)),
+                 ("merge_score_coef", (types.IntType, types.FloatType)),
+                 ("merge_abun_coef", (types.IntType, types.FloatType)),
+                 ("delete_score_coef", (types.IntType, types.FloatType)),   
+                 ("delete_abun_coef", (types.IntType, types.FloatType)),
+                 ("split_proportion", (types.IntType, types.FloatType)),
+                 ("merge_proportion", (types.IntType, types.FloatType)),
+                 ("delete_proportion", (types.IntType, types.FloatType)),
+                 ("n_cross_folds", types.IntType),
+                 ("mapping_file", types.FileType),
+                 ("negate", types.BooleanType),
+                 ("output_dir", types.StringType),
+                 ("prediction_field", types.StringType),
+                 ("include_only", (types.NoneType, types.ListType)),
+                 ("group_map_files", types.ListType)
+                ]
+    for var_name, var_type in simple_var_types:
+        check_input_type(var_name, locals()[var_name], var_type)
+    if len(inspect.getargspec(score_predictions_function)[0]) < 2:
+        raise InputTypeError("scope_predictions_function should take at least two parameters")
+    if not all([isinstance(f, types.FileType) for f in group_map_files]):
+        raise InputTypeError("group_map_files should be a list of open files")
+    if include_only != None:
+        if not isinstance(include_only[0], types.StringType):
+            raise InputTypeError("include_only[0] should be of type string")
+        if not isinstance(include_only[1], types.ListType) or \
+                not all([isinstance(value, types.StringType) for value in include_only[1]]):
+            raise InputTypeError("include_only[1] should be a list of strings")
+
     if not exists(output_dir):
         makedirs(output_dir)
 
@@ -82,127 +121,57 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
                  'model' % model)
     start_time = time()
 
-    feature_vector_output_fp = join(output_dir,
-                                    'feature_vector_output.txt')
-
     vector_model = GroupVectorModel(parse_model_string(model))
     group_vector_scorer = CrossValidationGroupVectorScorer(score_predictions_function, vector_model, n_cross_folds)
     problem_data, initial_feature_vector = build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, negate, n_processes)
+    assert isinstance(problem_data, ProblemData),\
+        "build_problem_data did not return a GroupProblemData"
+    assert isinstance(initial_feature_vector, FeatureVector),\
+        "build_problem_data did not return a FeatureVector"
     group_actions = [SplitAction(problem_data, split_proportion, split_abun_coef, split_score_coef),
                      MergeAction(problem_data, merge_proportion, merge_abun_coef, merge_score_coef),
                      DeleteAction(problem_data, delete_proportion, delete_abun_coef, delete_score_coef)]
     vector_generator = ActionVectorGenerator(group_actions, n_generate)
+    
 
+    scope_optimization = ScopeOptimization(group_vector_scorer, vector_generator, n_processes, n_iterations, n_maintain)
+
+    logging.info('Completed optimization initialization')
     if n_trials > 0:
-        xfold_feature_vectors = [[] for i in range(n_iterations)]
-        masks = [(train, test) for train, test in KFold(problem_data.get_n_samples(), n_folds=n_trials, indices=False)]
-        for train_mask, test_mask in masks:
-            problem_data.set_mask(train_mask)
-            iteration_outcomes = scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, True)
-            for iteration in range(len(iteration_outcomes)):
-                xfold_feature_vectors[iteration].append(iteration_outcomes[iteration].feature_vector)
-        functions = []
-        mask_results = []
-        for iteration in range(len(iteration_outcomes)):
-            for mask_index in range(len(masks)):
-                functions.append( (mask_testing, (problem_data, masks[mask_index], vector_model, score_predictions_function, xfold_feature_vectors[iteration][mask_index], (iteration, mask_index))) )
-        multiprocess_functions(functions, mask_results.append, n_processes)
-        test_outcomes = [[None for x in range(len(masks))] for i in range(n_iterations)]
-        for tag, mask_result in mask_results:
-            iteration, mask_index = tag
-            test_outcomes[iteration][mask_index] = mask_result
-
+        test_outcomes = scope_optimization_cross_validation(scope_optimization, initial_feature_vector, problem_data, vector_model, score_predictions_function, n_trials, n_processes)
+        
+        assert len(test_outcomes) == n_iterations, "test outcomes isn't returning an entry for each iteration"
+        assert all([len(mask_outcomes) == n_trials for mask_outcomes in test_outcomes]), \
+            "test outcomes isn't returning an outcome for each mask for each iteration"
+        assert all([all([isinstance(outcome, ModelOutcome) for outcome in mask_outcomes])
+                    for mask_outcomes in test_outcomes]), \
+                    "test outcomes are not all of type ModelOutcome"
+        
         prediction_testing_output_fp = join(output_dir,
                                             'prediction_testing_output.txt')
         write_to_file(testing_output_lines(test_outcomes),
                       prediction_testing_output_fp)
-        
-        avg_outcome = stitch_avg_outcome(test_outcomes[-1], masks)
-
-        write_to_file(feature_output_lines(avg_outcome),
+        assert isfile(prediction_testing_output_fp), \
+            "Output file \"%s\"was not created" %prediction_testing_output_fp
+            
+        feature_vector_output_fp = join(output_dir,
+                                        'fold_feature_vectors_output.txt')
+        write_to_file(fold_features_output_lines(test_outcomes[-1]),
                       feature_vector_output_fp)
+        assert isfile(feature_vector_output_fp), \
+            "Output file \"%s\"was not created" %feature_vector_output_fp
     else:
-        outcome = scope_optimization(initial_feature_vector, problem_data, group_vector_scorer, vector_generator, n_iterations, n_processes, n_maintain, False)
+        outcome = scope_optimization.optimize_vector(initial_feature_vector, problem_data, False)
+        assert isinstance(outcome, ModelOutcome), "scope_optimization outcome is not a ModelOutcome"
+        
+        feature_vector_output_fp = join(output_dir,
+                                        'feature_vector_output.txt')
         write_to_file(feature_output_lines(outcome), feature_vector_output_fp)
+        assert isfile(feature_vector_output_fp), \
+            "Output file \"%s\"was not created" %feature_vector_output_fp
 
     end_time = time()
     elapsed_time = end_time - start_time
     logging.info('Finished feature vector optimization process for \'%s\' '
                  'model' % model)
     logging.info('Total elapsed time (in seconds): %d' % elapsed_time)
-
-def mask_testing(problem_data, masks, vector_model, score_predictions_function, feature_vector, ordering_tag=None):
-    train_mask, test_mask = masks
-    problem_data.set_mask(train_mask)
-    vector_model.fit(problem_data, feature_vector)
-    problem_data.set_mask(test_mask)
-    test_predictions = vector_model.predict(problem_data, feature_vector)
-    prediction_quality = score_predictions_function(problem_data.get_response_variables(), test_predictions)
-    feature_scores = vector_model.get_feature_scores()
-
-    outcome = ModelOutcome(feature_vector, feature_scores, prediction_quality, test_predictions)
-
-    if ordering_tag != None:
-        return (ordering_tag, outcome)
-    else:
-        return outcome
-   
-def stitch_avg_outcome(outcome_list, masks):
-    n_features = len(outcome_list[0].feature_vector.get_record_list())
-    n_samples = len(masks[0][0])
-    n_outcomes = len(outcome_list)
-    
-    feature_vector = outcome_list[0].feature_vector    
-    avg_prediction_score = sum([outcome.prediction_quality for outcome in outcome_list])/float(n_outcomes)
-    average_feature_scores = []
-    for i in range(n_features):
-        avg_feature_score = sum([outcome.feature_scores[i] for outcome in outcome_list])/float(n_outcomes)
-        average_feature_scores.append(avg_feature_score)
-    
-    predictions = [None for i in range(n_samples)]
-    for outcome_index in range(len(outcome_list)):
-        train_mask, test_mask = masks[outcome_index]
-        p_index = 0
-        for m_index in range(len(test_mask)):
-            if test_mask[m_index]:
-                predictions[m_index] = outcome_list[outcome_index].predictions[p_index]
-                p_index += 1
-                
-    avg_outcome = ModelOutcome(feature_vector, average_feature_scores, avg_prediction_score, predictions)
-    return avg_outcome
-   
-def build_problem_data(group_map_files, mapping_file, prediction_field,
-                       start_level, include_only, negate, n_processes):
-    #For each scope, build a map from group to object and vice versa
-    group_to_object = []
-    object_to_group = []
-    for map_file in group_map_files:
-        g_to_o, o_to_g = read_split_file(map_file)
-        group_to_object.append(g_to_o)
-        object_to_group.append(o_to_g)
-
-    #Find a list of sample names from our group names
-    #An alternative is 'samplenames = samplemap.keys()', but that may have records without features
-    samplenames = set()
-    for grp in group_to_object[start_level]:
-        l = group_to_object[start_level][grp]
-        for obj in l:
-            samplenames.add(parse_object_string_sample(obj))
-    samplenames = list(samplenames)
-
-    #get a map of sample name to it's properties
-    samplemap = read_mapping_file(mapping_file)
-
-    sample_to_response = {}
-    for samplename in samplenames:
-        if (include_only is None or
-            ((samplemap[samplename][include_only[0]] in include_only[1]) ^ negate)):
-            sample_to_response[samplename] = samplemap[samplename][prediction_field]
-
-    problem_data = ProblemData(group_to_object, object_to_group, sample_to_response, n_processes)
-
-    feature_vector = FeatureVector([FeatureRecord(group, start_level,
-                                                  len(group_to_object[start_level][group]))
-                                    for group in group_to_object[start_level].keys()])
-
-    return problem_data, feature_vector
