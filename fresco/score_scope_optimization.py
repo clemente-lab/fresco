@@ -30,6 +30,4 @@ def scope_optimization_cross_validation(scope_optimization, initial_feature_vect
         iteration, mask_index = tag
         test_outcomes[iteration][mask_index] = mask_result
     
-    problem_data.update_feature_abundances()
-    
     return test_outcomes
