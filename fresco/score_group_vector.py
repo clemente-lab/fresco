@@ -16,7 +16,7 @@ class CrossValidationGroupVectorScorer(GroupVectorScorer):
         
     def score_feature_vector(self, problem_data, feature_vector, masks = None):
         if masks == None:
-            masks = [(mask[0], mask[1]) for mask in KFold(len(problem_data.get_response_variables()), n_folds=self.n_cross_folds, indices=False)]
+            masks = [(mask[0], mask[1]) for mask in KFold(len(problem_data.get_response_variables()), n_folds=self.n_cross_folds)]
         feature_vectors = []
         if isinstance(feature_vector, FeatureVector):
             feature_vectors = [feature_vector for mask in masks]

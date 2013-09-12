@@ -3,9 +3,10 @@ from fresco.vector_generator import VectorGenerator
 from fresco.feature_vector import FeatureVector
 
 class ActionVectorGenerator(VectorGenerator):
-    def __init__(self, group_actions, n_generate):
+    def __init__(self, group_actions, n_generate, problem_data):
         self.group_actions = group_actions
         self.n_generate = n_generate
+        self.problem_data = problem_data
 
     def generate_vectors(self, outcomes):
         vectors = []
@@ -24,7 +25,8 @@ class ActionVectorGenerator(VectorGenerator):
         
         feature_vector = outcome.feature_vector
 
-        feature_abundances = [record.get_abundance() for record in feature_vector.get_record_list()]
+        feature_abundances = [self.problem_data.get_feature_abundance(record.get_scope(), record.get_id())
+                              for record in feature_vector.get_record_list()]
         feature_scores = outcome.feature_scores
         
         abundance_deviations = std_dev_dists(feature_abundances)
@@ -36,6 +38,14 @@ class ActionVectorGenerator(VectorGenerator):
         for i in range(self.n_generate):
             new_feature_vector = FeatureVector(feature_vector.get_record_list()[:])
             action_selections = self.stochastic_action_selection(action_scores)
+            
+            for n in range(len(action_selections)):
+                action = action_selections[n]
+                if isinstance(action, MergeAction):
+                    assert feature_vector.get_record_list()[n].get_scope() != 0
+                if isinstance(action, SplitAction):
+                    assert feature_vector.get_record_list()[n].get_scope() != action.problem_data.get_max_scope()
+            
             for feature_index in reversed(range(len(action_selections))):
                 if action_selections[feature_index] != None:
                     action_selections[feature_index].apply(feature_index, new_feature_vector)
@@ -45,16 +55,16 @@ class ActionVectorGenerator(VectorGenerator):
         
     def stochastic_action_selection(self, action_scores):
         def normalize_scores(scores, exclude_list):
+            mini = min(scores)
+            if float(mini) < 0:
+                scores -= mini
+
             invalid_list = []
             for i in range(len(scores)):
                 if scores[i] == None:
                     scores[i] = 0
                     invalid_list.append(i)
-            
-            mini = min(scores)
-            if float(mini) < 0:
-                scores -= mini
-
+                    
             for e in exclude_list:
                 scores[e] = 0
             for i in invalid_list:

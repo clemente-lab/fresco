@@ -31,7 +31,7 @@ class ProblemData:
         self.response_variables = np.array([sample_to_response[sample] for sample in sample_to_response.keys()])
         self.max_scope = len(object_to_group)-1
         self.n_unmasked_samples = len(sample_to_response)
-        self.mask_stack = []
+        self.mask_length_stack = []
         self.aggregate_index_mask = None
 
         sample_indices = dict([(sample_to_response.keys()[index], index) for index
@@ -128,45 +128,27 @@ class ProblemData:
     def push_mask(self, mask):
         if not isinstance(mask, np.ndarray):
             raise InputTypeError('mask is not a Numpy array')
-        if len(mask) != len(self.get_response_variables()):
-            raise InputTypeError('boolean mask pushed of length %s where currently masked number of samples is %s' %(len(mask), len(self.get_response_variables())))
-        self.mask_stack.append(mask)
-        self.update_aggregate_mask()
-        self.update_feature_abundances()
+        self.mask_length_stack.append(mask.shape[0])
+        
+        if self.aggregate_index_mask == None:
+            self.aggregate_index_mask = mask
+        else:
+            self.aggregate_index_mask = np.hstack( (self.aggregate_index_mask, mask) )
         
     def pop_mask(self):
-        if len(self.mask_stack) == 0:
+        if len(self.mask_length_stack) == 0:
             return None
+        pop_length = self.mask_length_stack.pop()
         
-        mask = self.mask_stack.pop()
-        self.update_aggregate_mask()
-        self.update_feature_abundances()
+        assert self.aggregate_index_mask.shape[0] >= pop_length,\
+            "the aggregate_index_mask is missing entries"
         
-        return mask
-    
-    def replace_mask(self, mask):
-        if self.mask_stack:
-            self.mask_stack.pop()
-        self.update_aggregate_mask()
-        self.push_mask(mask)
-
-    def update_aggregate_mask(self):
-        if not self.mask_stack:
+        self.aggregate_index_mask = self.aggregate_index_mask[:-pop_length]
+        if self.aggregate_index_mask.shape[0] == 0:
             self.aggregate_index_mask = None
-            return
         
-        agg_index_mask = np.array(range(self.get_n_unmasked_samples()))
-        for mask in self.mask_stack:
-            assert agg_index_mask.shape == mask.shape
-            agg_index_mask = agg_index_mask[mask]
-        self.aggregate_index_mask = agg_index_mask
-
-    def update_feature_abundances(self):
-        for scope in range(len(self.feature_records)):
-            for group in self.feature_records[scope].keys():
-                self.get_feature_record(scope, group).feature_abundance = \
-                    self.get_feature_abundance(scope, group)
-            
+        return pop_length
+        
     def get_feature_abundance(self, scope, group):
         return sum(self.get_feature_column(scope, group))
     
@@ -198,6 +180,8 @@ class ProblemData:
     def get_split_groups(self, scope, group, final_scope):
         if not isinstance(scope, types.IntType) or scope < 0 or scope > self.get_max_scope():
             raise InputTypeError("scope (%s) is not a valid scope index" %scope)
+        if not isinstance(final_scope, types.IntType) or final_scope < 0 or final_scope > self.get_max_scope():
+            raise InputTypeError("final_scope (%s) is not a valid scope index" %final_scope)
         try:
             return self.scope_map[scope][(group, final_scope)]
         except KeyError:

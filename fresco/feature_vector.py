@@ -12,10 +12,7 @@ class FeatureRecord:
     def __init__(self, feature_id, scope, abundance):
         self.feature_id = feature_id
         self.scope = scope
-        self.abundance = abundance
-
-    def get_abundance(self):
-        return self.abundance
+        
     def get_scope(self):
         return self.scope
     def get_id(self):
