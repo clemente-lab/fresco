@@ -55,16 +55,16 @@ class ActionVectorGenerator(VectorGenerator):
         
     def stochastic_action_selection(self, action_scores):
         def normalize_scores(scores, exclude_list):
-            mini = min(scores)
-            if float(mini) < 0:
-                scores -= mini
-
             invalid_list = []
             for i in range(len(scores)):
                 if scores[i] == None:
                     scores[i] = 0
                     invalid_list.append(i)
                     
+            mini = min(scores)
+            if float(mini) < 0:
+                scores -= mini
+
             for e in exclude_list:
                 scores[e] = 0
             for i in invalid_list:
