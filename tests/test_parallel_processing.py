@@ -5,6 +5,25 @@ from unittest import TestCase, main
 from fresco.parallel_processing import (multiprocess_functions,
                                         ProcessDefinition)
 
+class ParallelProcessingTests(TestCase):
+    """Tests for functions in the parallel_processing module."""
+
+    def setUp(self):
+        """Initialize data used in the tests."""
+        def f(a, b):
+            return a * b
+
+        self.procs = [ProcessDefinition(f, (1, 2)),
+                      ProcessDefinition(f, (3, 4))]
+        self.results = []
+        self.result_handler = self.results.append
+
+    def test_multiprocess_functions(self):
+        """Test running processes in parallel."""
+        multiprocess_functions(self.procs, self.result_handler, 1)
+        self.assertEqual(sorted(self.results), [2, 12])
+
+
 class ProcessDefinitionTests(TestCase):
     """Tests for the ProcessDefinition class."""
 
