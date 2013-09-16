@@ -46,8 +46,7 @@ class ProcessDefinition(object):
         
     def process(self):
         result = self.function(*self.positional_arguments, **self.keyword_arguments)
-        if self.tag != None:
-            return (self.tag, result)
+        if self.tag is not None:
+            return self.tag, result
         else:
             return result
-        

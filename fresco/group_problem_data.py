@@ -38,7 +38,7 @@ class ProblemData:
                                in range(len(sample_to_response.keys()))])
         
         assert all([self.response_variables[sample_indices[sample]] == sample_to_response[sample] for sample in sample_to_response.keys()]),\
-            "sample_indecies are not able to map correctly back to the response variable"
+            "sample_indices are not able to map correctly back to the response variable"
 
         self.feature_columns = [None for i in range(len(group_to_object))]
         self.feature_records = [None for i in range(len(group_to_object))]
