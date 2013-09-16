@@ -7,26 +7,47 @@ from fresco.utils import InputTypeError
 #[GROUP NAME 1]\t[OBJECT NAME 1]\t[OBJECT NAME 2]                                                        
 #[GROUP NAME 2]\t[OBJECT NAME 3]                                                                         
 def read_split_file(split_file):
-    if not isinstance(split_file, types.FileType):
-        raise InputTypeError("split_file should of an open file")
-    
+    if not (isinstance(split_file, types.FileType) or
+            isinstance(split_file, types.ListType)):
+        raise InputTypeError("split_file should be an open file or list of "
+                             "lines")
+
     group_to_object = {}
     object_to_group = {}
 
-    while True:
-        line = split_file.readline()
-        if line == '':
-            break
-        entries = line.split('\t')
-        group_to_object[entries[0]] = entries[1:]
-        for obj in entries[1:]:
-            object_to_group[obj] = entries[0]
+    for line in split_file:
+        line = line.strip()
+
+        if not line:
+            continue
+
+        entries = map(lambda e: e.strip(), line.split('\t'))
+        group_id = entries[0]
+        obj_ids = entries[1:]
+
+        if group_id in group_to_object:
+            raise FeatureMapFileFormatError("The feature with ID '%s' was "
+                    "already found in the feature map file. Feature IDs must "
+                    "be unique." % group_id)
+        else:
+            group_to_object[group_id] = obj_ids
+
+        for obj_id in obj_ids:
+            if obj_id in object_to_group:
+                raise FeatureMapFileFormatError("The object with ID '%s' was "
+                        "already found in the feature map file (mapped to "
+                        "feature '%s'). Object IDs must be unique." % (obj_id,
+                        object_to_group[obj_id]))
+            else:
+                object_to_group[obj_id] = group_id
 
     return group_to_object, object_to_group
 
 def read_mapping_file(mapping_file):
-    if not isinstance(mapping_file, types.FileType):
-        raise InputTypeError("mapping_file should of an open file")
+    if not (isinstance(mapping_file, types.FileType) or
+            isinstance(mapping_file, types.ListType)):
+        raise InputTypeError("mapping_file should be an open file or list of "
+                             "lines")
     
     samplemap = {}
     
@@ -36,21 +57,41 @@ def read_mapping_file(mapping_file):
     n_fields = None
     
     for row in mapping_file:
+        row = row.strip()
+
+        if not row:
+            continue
+
+        fields = map(lambda e: e.strip(), row.split('\t'))
+
         if header_row:
-            headerfields = row.split("\t")
+            headerfields = fields
             n_fields = len(headerfields)
             header_row = False
+            continue
 
-        fields = row.split("\t")
         if len(fields) != n_fields:
-            raise MappingFileFormatError("row does not have the same number of columns (=%s) as the first row" %n_fields)
+            raise MappingFileFormatError("row does not have the same number of columns (=%s) as the first row" % n_fields)
         
-        fieldmap = {}
-        for i in range(1, len(fields)):
-            fieldmap[headerfields[i]] = fields[i]
-        samplemap[fields[0]] = fieldmap
-    
+        sample_id = fields[0]
+        sample_md = fields[1:]
+
+        if sample_id in samplemap:
+            raise MappingFileFormatError("The sample with ID '%s' was already "
+                    "found in the mapping file. Sample IDs must be unique."
+                    % sample_id)
+        else:
+            fieldmap = {}
+            for i in range(len(sample_md)):
+                fieldmap[headerfields[i + 1]] = sample_md[i]
+            samplemap[sample_id] = fieldmap
+
     return samplemap
 
+
 class MappingFileFormatError(Exception):
+    pass
+
+
+class FeatureMapFileFormatError(Exception):
     pass
