@@ -10,7 +10,6 @@ def scope_optimization_cross_validation(scope_optimization, initial_feature_vect
         problem_data.push_mask(train_mask)
         iteration_outcomes = scope_optimization.optimize_vector(initial_feature_vector, problem_data, True)
         problem_data.pop_mask()
-        #print "len iteration_outcomes", len(iteration_outcomes), "len training_outcomes", len(training_outcomes)
         for iteration in range(n_iterations):
             training_outcomes[iteration].append(iteration_outcomes[iteration])
     
