@@ -1,0 +1,170 @@
+#!/usr/bin/env python
+from __future__ import division
+
+import sys
+from collections import defaultdict
+from glob import glob
+from os.path import basename, exists, isdir, join
+
+from matplotlib import use
+use('Agg', warn=False)
+from matplotlib.pyplot import (errorbar, figure, legend, plot, savefig, title,
+                               xlabel, ylabel, ylim)
+
+model_info = {
+    'lr': ('Logistic Regression', 'r'),
+    'rf': ('Random Forest', 'b'),
+    'sv': ('Support Vector Machine', 'g')
+}
+
+otu_map_list_filename = 'otu_maps.txt'
+iter_results_filename = 'prediction_testing_output.txt'
+result_log_filename = 'info.log'
+feature_vector_filename = 'feature_vector_output.txt'
+iter_plot_filename = 'iter_plot.png'
+thresh_plot_filename = 'thresh_plot.png'
+iter_plot_title = 'Accuracy by Iterations'
+thresh_plot_title = 'Comparative Accuracy by Starting Threshold'
+iter_plot_xlabel = 'Iterations'
+thresh_plot_xlabel = 'Starting Threshold'
+iter_plot_ylabel = 'Accuracy'
+thresh_plot_ylabel = 'Accuracy'
+thresh_plot_static_label = 'Static'
+thresh_plot_dynamic_label = 'Dynamic'
+
+def main():
+    if len(sys.argv) != 2:
+        sys.stderr.write("Usage: make-fresco-plots <input directory>\n")
+        sys.exit(1)
+
+    in_dir = sys.argv[1]
+
+    for study_dir, study in get_dirs(in_dir, [otu_map_list_filename]):
+        for cat_dir, cat in get_dirs(study_dir):
+            thresh_results = {}
+
+            for level_dir, level in get_dirs(cat_dir):
+                iter_results = {}
+
+                for model_dir, model in get_dirs(level_dir,
+                                                 [iter_results_filename,
+                                                  result_log_filename,
+                                                  feature_vector_filename]):
+                    iter_results_fp = join(model_dir, iter_results_filename)
+
+                    with open(iter_results_fp, 'U') as iter_results_f:
+                        iter_results[model] = \
+                                parse_iter_results_file(iter_results_f)
+
+                if len(iter_results) > 0:
+                    iter_plot_fp = join(level_dir, iter_plot_filename)
+                    generate_iter_plot(iter_results, iter_plot_fp, study, cat,
+                                       level)
+                    thresh_results[level] = iter_results
+
+            if len(thresh_results) > 0:
+                thresh_plot_fp = join(cat_dir, thresh_plot_filename)
+                generate_thresh_plot(thresh_results, thresh_plot_fp, study,
+                                     cat)
+
+def get_dirs(root_dir, required_contents=None):
+    if required_contents is None:
+        required_contents = []
+
+    dirs = []
+
+    for subdir in glob(join(root_dir, '*')):
+        required_fps = map(lambda e: join(subdir, e), required_contents)
+
+        if isdir(subdir) and all(map(exists, required_fps)):
+            dirs.append((subdir, basename(subdir)))
+
+    return dirs
+
+def parse_iter_results_file(f):
+    iterations = []
+    accuracies = []
+    yerrs = []
+
+    seen_header = False
+    for line in f:
+        if not seen_header:
+            seen_header = True
+            continue
+
+        iteration, accuracy, yerr = map(float, line.split('\t'))
+        iterations.append(iteration)
+        accuracies.append(accuracy)
+        yerrs.append(yerr)
+
+    return iterations, accuracies, yerrs
+
+def generate_iter_plot(plot_data, output_fp, study, category, level):
+    figure()
+
+    for model, (iterations, accuracies, yerrs) in sorted(plot_data.items()):
+        if model not in model_info:
+            raise ValueError("Unrecognized model '%s'. Valid models: %s" %
+                             (model, ', '.join(model_info.keys())))
+
+        model_name, model_color = model_info[model]
+
+        # Not plotting yerr right now until we have a different plot type
+        # (e.g., bar charts). To make line plots with error bars, use:
+        #     errorbar(iterations, accuracies, yerr=yerrs, color=model_color,
+        #              label=model_name)
+        plot(iterations, accuracies, color=model_color, label=model_name)
+
+    xlabel(iter_plot_xlabel)
+    ylabel(iter_plot_ylabel)
+    plot_title = '%s (%s, %s, %s)' % (iter_plot_title, study, category, level)
+    title(plot_title)
+    legend()
+    ylim(ymax=1.0)
+    savefig(output_fp)
+
+def generate_thresh_plot(plot_data, output_fp, study, category):
+    figure()
+
+    levels = []
+    comp_plot_data = defaultdict(lambda: ([], []))
+    for level, model_data in sorted(plot_data.items()):
+        levels.append(level)
+
+        for model, (iterations, accuracies, yerrs) in \
+                sorted(model_data.items()):
+            if len(accuracies) < 2:
+                raise ValueError("There are not enough iterations to compare "
+                                 "static and dynamic models. There must be at "
+                                 "least two iterations.")
+
+            comp_plot_data[model][0].append(accuracies[0])
+            comp_plot_data[model][1].append(accuracies[-1])
+
+    for model, model_data in sorted(comp_plot_data.items()):
+        if model not in model_info:
+            raise ValueError("Unrecognized model '%s'. Valid models: %s" %
+                             (model, ', '.join(model_info.keys())))
+        if len(levels) != len(model_data[0]) or \
+                len(levels) != len(model_data[1]):
+            raise ValueError("Data do not exist for all models at the same "
+                             "levels.")
+
+        model_name, model_color = model_info[model]
+
+        plot(levels, model_data[0], color=model_color,
+             label='%s, %s' % (model_name, thresh_plot_static_label))
+        plot(levels, model_data[1], color=model_color, linestyle='--',
+             label='%s, %s' % (model_name, thresh_plot_dynamic_label))
+
+    xlabel(thresh_plot_xlabel)
+    ylabel(thresh_plot_ylabel)
+    plot_title = '%s (%s, %s)' % (thresh_plot_title, study, category)
+    title(plot_title)
+    legend()
+    ylim(ymax=1.0)
+    savefig(output_fp)
+
+
+if __name__ == "__main__":
+    main()
