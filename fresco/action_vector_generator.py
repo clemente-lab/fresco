@@ -39,7 +39,7 @@ class ActionVectorGenerator(VectorGenerator):
             new_feature_vector = FeatureVector(feature_vector.get_record_list()[:])
             action_selections = self.stochastic_action_selection(action_scores)
             
-            for n in range(len(action_selections)):
+            for n in range(len(action_scores[0])):
                 action = action_selections[n]
                 if isinstance(action, MergeAction):
                     assert feature_vector.get_record_list()[n].get_scope() != 0
@@ -79,9 +79,14 @@ class ActionVectorGenerator(VectorGenerator):
 
         def sample_from_scores(scores, proportion, exclude_list):
             scores = normalize_scores(scores, exclude_list)
-                
+
             np.random.seed() #necessary for mutlithreaded code
-            sample = np.random.choice(len(scores), int(len(scores)*proportion), p=scores, replace=False) if len(scores) > 0 else []
+            n_nonzero = len([score for score in scores if score != 0])
+            size = min(int(len(scores) * proportion), n_nonzero)
+            sample = np.random.choice(len(scores), size, p=scores, replace=False) if len(scores) > 0 else []
+            for s in sample:
+                assert scores[s] != 0
+
             return sample
         
         actions = [None for i in range(len(action_scores[0]))]
@@ -89,11 +94,12 @@ class ActionVectorGenerator(VectorGenerator):
         
         #selection actions for priority in the order they were passed in
         for action_index in range(len(self.group_actions)):
-            action_sample = sample_from_scores(action_scores[action_index], self.group_actions[action_index].get_proportion(), exclude_list)
+            action_sample = sample_from_scores(action_scores[action_index][:], self.group_actions[action_index].get_proportion(), exclude_list)
             for i in action_sample:
+                assert action_scores[action_index][i] != None
                 actions[i] = self.group_actions[action_index]
             exclude_list += list(action_sample)
-       
+            
         return actions
     
     
