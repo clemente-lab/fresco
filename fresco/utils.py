@@ -4,6 +4,9 @@ from __future__ import division
 from sklearn.svm import LinearSVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+import numpy as np
+import sys
+
 
 def parse_object_string_sample(object_string):
     try:
@@ -41,6 +44,31 @@ def get_list_accuracy(y1, y2):
                 match_count += 1
 
         return match_count / len(y1)
+
+def normalized_scores(scores, exclude_list):
+    scores = scores[:]
+    
+    invalid_list = []
+    for i in range(len(scores)):
+        if scores[i] == None:
+            scores[i] = 0
+            invalid_list.append(i)
+            
+    mini = min(scores)
+    if float(mini) < 0:
+        scores -= mini
+
+    for e in exclude_list:
+        scores[e] = 0
+    for i in invalid_list:
+        scores[i] = 0
+    
+    sumi = sum(scores)
+    if float(sumi) != 0:
+        scores /= sumi
+        return scores
+    else: #since all elements are non-negative, all elements must be 0
+        return []
 
 class InputTypeError(Exception):
     pass
