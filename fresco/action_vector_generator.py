@@ -44,7 +44,6 @@ class ActionVectorGenerator(VectorGenerator):
             value_list = np.array(value_list)
             avg = np.mean(value_list)
             std = np.std(value_list)
-        
             dists = [(s-avg)/std for s in value_list]
             return dists
         
@@ -53,6 +52,9 @@ class ActionVectorGenerator(VectorGenerator):
         feature_abundances = [self.problem_data.get_feature_abundance(record.get_scope(), record.get_id())
                               for record in feature_vector.get_record_list()]
         feature_scores = outcome.feature_scores
+        
+        print "ABUNS", feature_abundances
+        print "SCORES", feature_scores
         
         abundance_deviations = std_dev_dists(feature_abundances)
         score_deviations = std_dev_dists(feature_scores)

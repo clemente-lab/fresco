@@ -8,7 +8,7 @@ from feature_vector import FeatureVector
 import inspect
 
 class ProblemData:
-    def __init__(self, group_to_object, object_to_group, sample_to_response, n_processes, parse_object_sample=parse_object_string_sample):
+    def __init__(self, group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string=parse_object_string_sample):
         if not isinstance(group_to_object, types.ListType):
             raise InputTypeError('group_to_object should be a list type')
         if not isinstance(object_to_group, types.ListType):
@@ -23,9 +23,9 @@ class ProblemData:
             raise InputTypeError('sample_to_response should be a dict type')
         if not isinstance(n_processes, types.IntType) or n_processes < 1:
             raise InputTypeError('n_processes should be a positive int')
-        if not isinstance(parse_object_sample, types.FunctionType):
+        if not isinstance(parse_object_string, types.FunctionType):
             raise InputTypeError('parse_object_sample should be a function')
-        if len(inspect.getargspec(parse_object_sample)[0]) < 1:
+        if len(inspect.getargspec(parse_object_string)[0]) < 1:
             raise InputTypeError('parse_object_sample should take at least one argument')
         
         self.response_variables = np.array([sample_to_response[sample] for sample in sample_to_response.keys()])
@@ -54,7 +54,7 @@ class ProblemData:
 
                 feature_column = np.zeros(len(sample_indices))
                 for obj in objects:
-                    sample_id = parse_object_sample(obj)
+                    sample_id = parse_object_string(obj)
                     assert sample_id, 'parsed sample_id is None or empty'
                     try:
                         feature_column[sample_indices[sample_id]] += 1
@@ -150,6 +150,7 @@ class ProblemData:
         return pop_length
         
     def get_feature_abundance(self, scope, group):
+        print "self.get_feature_column(%s, %s)"%(scope, group), self.get_feature_column(scope, group)
         return sum(self.get_feature_column(scope, group))
     
     def get_n_unmasked_samples(self):
@@ -194,11 +195,10 @@ class ProblemData:
             return self.response_variables
 
 def build_problem_data(group_map_files, mapping_file, prediction_field,
-                       start_level, include_only, negate, n_processes):
+                       start_level, include_only, negate, n_processes, parse_object_string=parse_object_string_sample):
     simple_var_types = [
                  ("n_processes", types.IntType),
                  ("start_level", types.IntType),
-                 ("mapping_file", types.FileType),
                  ("negate", types.BooleanType),
                  ("prediction_field", types.StringType),
                  ("include_only", (types.NoneType, types.ListType)),
@@ -206,8 +206,6 @@ def build_problem_data(group_map_files, mapping_file, prediction_field,
                 ]
     for var_name, var_type in simple_var_types:
         check_input_type(var_name, locals()[var_name], var_type)
-    if not all([isinstance(f, types.FileType) for f in group_map_files]):
-        raise InputTypeError("group_map_files should be a list of open files")
     if include_only != None:
         if not isinstance(include_only[0], types.StringType):
             raise InputTypeError("include_only[0] should be of type string")
@@ -237,7 +235,7 @@ def build_problem_data(group_map_files, mapping_file, prediction_field,
     for grp in group_to_object[start_level]:
         objs = group_to_object[start_level][grp]
         for obj in objs:
-            samplename = parse_object_string_sample(obj)
+            samplename = parse_object_string(obj)
             samplename_set.add(samplename)
     samplenames = list(samplename_set)
 
@@ -260,12 +258,17 @@ def build_problem_data(group_map_files, mapping_file, prediction_field,
     sample_to_response = {}
     for samplename in samplenames:
         if include_samplename(samplename):
+            sample_fields = None
             try:
-                sample_to_response[samplename] = samplemap[samplename][prediction_field]
+                sample_fields = samplemap[samplename]
+            except KeyError:
+                raise KeyError('A sample name (%s) found in the group files is not a sample in mapping_file.' %samplename)    
+            try:
+                sample_to_response[samplename] = sample_fields[prediction_field]
             except KeyError:
                 raise KeyError('prediction_field is not a field in mapping_file.')
 
-    problem_data = ProblemData(group_to_object, object_to_group, sample_to_response, n_processes)
+    problem_data = ProblemData(group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string)
 
     feature_vector = FeatureVector([FeatureRecord(group, start_level, problem_data.get_feature_abundance(start_level, group))
                                     for group in group_to_object[start_level].keys()])

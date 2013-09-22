@@ -7,11 +7,6 @@ from fresco.utils import InputTypeError
 #[GROUP NAME 1]\t[OBJECT NAME 1]\t[OBJECT NAME 2]                                                        
 #[GROUP NAME 2]\t[OBJECT NAME 3]                                                                         
 def read_split_file(split_file):
-    if not (isinstance(split_file, types.FileType) or
-            isinstance(split_file, types.ListType)):
-        raise InputTypeError("split_file should be an open file or list of "
-                             "lines")
-
     group_to_object = {}
     object_to_group = {}
 
@@ -41,14 +36,10 @@ def read_split_file(split_file):
             else:
                 object_to_group[obj_id] = group_id
 
+    print group_to_object
     return group_to_object, object_to_group
 
-def read_mapping_file(mapping_file):
-    if not (isinstance(mapping_file, types.FileType) or
-            isinstance(mapping_file, types.ListType)):
-        raise InputTypeError("mapping_file should be an open file or list of "
-                             "lines")
-    
+def read_mapping_file(mapping_file):   
     samplemap = {}
     
     header_row = True
@@ -75,6 +66,7 @@ def read_mapping_file(mapping_file):
         
         sample_id = fields[0]
         sample_md = fields[1:]
+        
 
         if sample_id in samplemap:
             raise MappingFileFormatError("The sample with ID '%s' was already "
