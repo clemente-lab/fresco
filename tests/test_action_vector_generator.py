@@ -6,10 +6,6 @@ from fresco.action_vector_generator import ActionVectorGenerator, SplitAction, M
 from fresco.group_problem_data import build_problem_data
 from fresco.model_outcome import ModelOutcome
 
-from fresco.group_vector_model import build_sample_matrix
-
-from sys import stderr
-
 
 class ActionVectorGeneratorTests(TestCase):
     """Tests for functions in the parallel_processing module."""
@@ -55,23 +51,23 @@ class ActionVectorGeneratorTests(TestCase):
             outcome = ModelOutcome(feature_vector, [r for r in range(len(feature_vector.get_record_list()))], prediction_quality=0, predictions=[])
             action_scores = self.action_vector_generator.generate_action_scores(outcome)
             
-            assert len(action_scores) == len(self.group_actions)
+            self.assertEquals(len(action_scores), len(self.group_actions))
             for action_index in range(len(action_scores)):
                 scores = action_scores[action_index]
-                assert len(scores) == len(feature_vector.get_record_list())
+                self.assertEquals(len(scores), len(feature_vector.get_record_list()))
                 action = self.group_actions[action_index]
                 if isinstance(action, MergeAction):
                     for feature_index in range(len(scores)):
                         if scores[feature_index] == None:
-                            assert feature_vector.get_record_list()[feature_index].get_scope() == 0
+                            self.assertEquals(feature_vector.get_record_list()[feature_index].get_scope(), 0)
                         else:
-                            assert feature_vector.get_record_list()[feature_index].get_scope() != 0
+                            self.assertNotEquals(feature_vector.get_record_list()[feature_index].get_scope(), 0)
                 elif isinstance(action, SplitAction):
                     for feature_index in range(len(scores)):
                         if scores[feature_index] == None:
-                            assert feature_vector.get_record_list()[feature_index].get_scope() == self.problem_data.get_max_scope()
+                            self.assertEquals(feature_vector.get_record_list()[feature_index].get_scope(), self.problem_data.get_max_scope())
                         else:
-                            assert feature_vector.get_record_list()[feature_index].get_scope() != self.problem_data.get_max_scope()
+                            self.assertEquals(feature_vector.get_record_list()[feature_index].get_scope(), self.problem_data.get_max_scope())
 
             feature_vector = self.action_vector_generator.generate_action_vector(outcome)[0]
 
