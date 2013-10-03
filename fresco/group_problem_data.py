@@ -8,6 +8,7 @@ from feature_vector import FeatureVector
 import inspect
 
 class ProblemData:
+    @profile
     def __init__(self, group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string=parse_object_string_sample):
         if not isinstance(group_to_object, types.ListType):
             raise InputTypeError('group_to_object should be a list type')
@@ -150,7 +151,6 @@ class ProblemData:
         return pop_length
         
     def get_feature_abundance(self, scope, group):
-        print "self.get_feature_column(%s, %s)"%(scope, group), self.get_feature_column(scope, group)
         return sum(self.get_feature_column(scope, group))
     
     def get_n_unmasked_samples(self):

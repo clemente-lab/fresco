@@ -53,9 +53,6 @@ class ActionVectorGenerator(VectorGenerator):
                               for record in feature_vector.get_record_list()]
         feature_scores = outcome.feature_scores
         
-        print "ABUNS", feature_abundances
-        print "SCORES", feature_scores
-        
         abundance_deviations = std_dev_dists(feature_abundances)
         score_deviations = std_dev_dists(feature_scores)
         action_scores = [[action.score(abundance_deviations[i], score_deviations[i], feature_vector.get_record_list()[i]) for i in range(len(feature_vector.get_record_list()))]

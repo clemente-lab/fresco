@@ -36,7 +36,6 @@ def read_split_file(split_file):
             else:
                 object_to_group[obj_id] = group_id
 
-    print group_to_object
     return group_to_object, object_to_group
 
 def read_mapping_file(mapping_file):   
