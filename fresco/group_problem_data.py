@@ -7,6 +7,8 @@ from fresco.parse_input_files import read_split_file, read_mapping_file
 from feature_vector import FeatureVector
 import inspect
 
+import gc
+
 class ProblemData:
     @profile
     def __init__(self, group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string=parse_object_string_sample):
@@ -47,12 +49,13 @@ class ProblemData:
         assert all([self.response_variables[sample_indices[sample]] == sample_to_response[sample] for sample in sample_to_response.keys()]),\
             "sample_indices are not able to map correctly back to the response variable"
 
+        #should split off the scope maps so that this can be run once per scope
         def build_group_records(scope, group_to_object, object_to_group, sample_indices):
             group_records = dict()
             n_scopes = len(group_to_object)
             n_samples = len(sample_indices)
             
-            for group in group_to_object[scope]:
+            for group in group_to_object[scope].keys():
                 objects = group_to_object[scope][group]
                 
                 sparce_sample_abundances = []
@@ -94,7 +97,7 @@ class ProblemData:
         results = []
         for scope in range(len(group_to_object)):
             process_definitions.append( ProcessDefinition(build_group_records, positional_arguments=(scope, group_to_object, object_to_group, sample_indices), tag=scope) )
-        multiprocess_functions(process_definitions, results.append, n_processes)
+        multiprocess_functions(process_definitions, results.append, 0)
 
         self.group_records = [None] * self.n_scopes
         for scope, result in results:
@@ -300,4 +303,6 @@ def build_problem_data(group_map_files, mapping_file, prediction_field,
             except KeyError:
                 raise KeyError('prediction_field is not a field in mapping_file.')
 
-    return ProblemData(group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string)
+    problem_data = ProblemData(group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string)
+
+    return problem_data

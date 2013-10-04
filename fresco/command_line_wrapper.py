@@ -17,6 +17,7 @@ from fresco.write_results import (write_to_file, testing_output_lines,
 from fresco.model_outcome import ModelOutcome
 from score_scope_optimization import scope_optimization_cross_validation
 import inspect
+import gc
 
 @profile
 def command_line_argument_wrapper(model, n_iterations, group_map_files,

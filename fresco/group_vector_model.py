@@ -4,11 +4,14 @@ class GroupVectorModel:
     def __init__(self, sklmodel):
         self.sklmodel = sklmodel
         
-    def fit(self, problem_data, feature_vector, X=None, mask=None):
-        self.sklmodel.fit( *get_Xy(problem_data, feature_vector, X, mask) )
+    def fit(self, problem_data, feature_vector, X=None, y=None):
+        X = build_sample_matrix(problem_data, feature_vector) if X == None else X
+        y = problem_data.get_response_variables() if y == None else y
+        self.sklmodel.fit(X, y)
     
-    def predict(self, problem_data, feature_vector, X=None, mask=None):
-        return self.sklmodel.predict( get_Xy(problem_data, feature_vector, X, mask)[0] )
+    def predict(self, problem_data, feature_vector, X=None):
+        X = build_sample_matrix(problem_data, feature_vector) if X == None else X   
+        return self.sklmodel.predict( X )
     
     def get_feature_scores(self):
         #Some models report the coeficients of each feature instead of the importances
@@ -41,13 +44,8 @@ def build_sample_matrix(problem_data, feature_vector):
         
     return sample_matrix
     
-def get_Xy(problem_data, feature_vector, X_, mask):
-    X = build_sample_matrix(problem_data, feature_vector) if X_ == None else X_
-    y = problem_data.get_response_variables()
-    
-    if mask != None:
-        X = X[mask]
-        y = y[mask]
+def get_Xy(problem_data, feature_vector, X, y):
+    X = build_sample_matrix(problem_data, feature_vector) if X == None else X
+    y = problem_data.get_response_variables() if y == None else y
         
     return X, y
-        

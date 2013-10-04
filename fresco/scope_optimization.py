@@ -17,10 +17,8 @@ class ScopeOptimization():
             new_vector_set = self.vector_generator.generate_vectors(outcome_set)
      
             #Note: The entire problem_data object does not have to be copied to test a vector, only the column vector.
-            testing_functions = [ProcessDefinition(self.group_vector_scorer.score_feature_vector, positional_arguments=(problem_data, new_vector)) for new_vector in new_vector_set]
-            result_handler = outcome_set.append
-            multiprocess_functions(testing_functions, result_handler, self.n_processes)
-        
+            outcome_set += self.group_vector_scorer.score_feature_vector_set(problem_data, new_vector_set, self.n_processes)
+            
             outcome_set.sort(key=lambda outcome:outcome.prediction_quality, reverse=True)
             outcome_set = outcome_set[:self.n_maintain]
             return_set.append(outcome_set[0])
