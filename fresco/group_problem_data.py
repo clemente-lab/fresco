@@ -28,8 +28,8 @@ class ProblemData:
             raise InputTypeError('group_to_object should be a list of dict types')
         if not isinstance(sample_to_response, types.DictType):
             raise InputTypeError('sample_to_response should be a dict type')
-        if not isinstance(n_processes, types.IntType) or n_processes < 1:
-            raise InputTypeError('n_processes should be a positive int')
+        if not isinstance(n_processes, types.IntType) or n_processes < 0:
+            raise InputTypeError('n_processes should be a non-negative int')
         if not isinstance(parse_object_string, types.FunctionType):
             raise InputTypeError('parse_object_sample should be a function')
         if len(inspect.getargspec(parse_object_string)[0]) < 1:
@@ -172,6 +172,9 @@ class ProblemData:
     def get_max_scope(self):
         return self.n_scopes - 1
 
+    def get_group_ids(self, scope):
+        return [group_id for group_id in self.group_records[scope]]
+    
     def get_feature_column(self, scope, group):
         if not isinstance(scope, types.IntType) or scope < 0 or scope > self.get_max_scope():
             raise InputTypeError("scope (%s) is not a valid scope index" %scope)
@@ -297,10 +300,4 @@ def build_problem_data(group_map_files, mapping_file, prediction_field,
             except KeyError:
                 raise KeyError('prediction_field is not a field in mapping_file.')
 
-    problem_data = ProblemData(group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string)
-
-    feature_vector = FeatureVector([FeatureRecord(group, start_level)
-                                    for group in group_to_object[start_level].keys()])
-
-    return problem_data, feature_vector
-
+    return ProblemData(group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string)
