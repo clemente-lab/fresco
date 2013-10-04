@@ -49,59 +49,21 @@ class ProblemData:
         assert all([self.response_variables[sample_indices[sample]] == sample_to_response[sample] for sample in sample_to_response.keys()]),\
             "sample_indices are not able to map correctly back to the response variable"
 
-        #should split off the scope maps so that this can be run once per scope
-        def build_group_records(scope, group_to_object, object_to_group, sample_indices):
-            group_records = dict()
-            n_scopes = len(group_to_object)
-            n_samples = len(sample_indices)
-            
-            for group in group_to_object[scope].keys():
-                objects = group_to_object[scope][group]
-                
-                sparce_sample_abundances = []
-                feature_column = np.zeros((n_samples,))
-                for obj in objects:
-                    sample_id = parse_object_string(obj)
-                    assert sample_id, 'parsed sample_id is None or empty'
-                    try:
-                        feature_column[sample_indices[sample_id]] += 1
-                    except KeyError:
-                        continue
-                    
-                for index in range(n_samples):
-                    abundance = feature_column[index]
-                    sparce_sample_abundances.append((index, abundance))
-
-                feature_record = FeatureRecord(group, scope)
-
-                scope_map = [None] * n_scopes
-                for final_scope in range(n_scopes):
-                    if final_scope == scope:
-                        scope_map[final_scope] = [(scope, group)]
-                        continue
-
-                    final_group_set = set()
-                    for obj in objects:
-                        try:
-                            final_group_set.add( (final_scope, object_to_group[final_scope][obj]) )
-                        except KeyError:
-                            continue
-                    scope_map[final_scope] = list(final_group_set)
-                    
-                group_record = GroupRecord(feature_record, scope_map, sparce_sample_abundances)
-                group_records[group] = group_record
-            
-            return group_records
+        
 
         process_definitions = []
         results = []
         for scope in range(len(group_to_object)):
-            process_definitions.append( ProcessDefinition(build_group_records, positional_arguments=(scope, group_to_object, object_to_group, sample_indices), tag=scope) )
-        multiprocess_functions(process_definitions, results.append, 0)
+            process_definitions.append( ProcessDefinition(build_group_records, positional_arguments=(scope, group_to_object[scope], sample_indices, parse_object_string), tag=scope) )
+        multiprocess_functions(process_definitions, results.append, n_processes)
 
         self.group_records = [None] * self.n_scopes
         for scope, result in results:
             self.group_records[scope] = result
+        
+        for scope in range(self.n_scopes):
+            for group in self.group_records[scope]:
+                self.build_scope_map(self.group_records[scope][group], group_to_object, object_to_group)
         
         if False:    
             for scope in range(self.n_scopes):
@@ -131,6 +93,31 @@ class ProblemData:
                     #        "scope_map has an entry that lists a group which shares no objects"
                     #==============================================================
 
+    def build_scope_map(self, group_record, group_to_object, object_to_group):
+        scope_map = [None] * self.n_scopes
+        scope = group_record.feature_record.get_scope()
+        group = group_record.feature_record.get_id()
+        objects = group_to_object[scope][group]
+        
+        for final_scope in range(self.n_scopes):
+            if final_scope == scope:
+                scope_map[final_scope] = [(scope, group)]
+                continue
+    
+            final_group_set = set()
+            for obj in objects:
+                try:
+                    #make sure not to reference the object_to_group string, or object_to_string won't be collected
+                    final_group_id = object_to_group[final_scope][obj]
+                    final_group = self.group_records[final_scope][final_group_id].feature_record.get_id()
+                    final_group_set.add( (final_scope, final_group) )
+                except KeyError:
+                    continue
+            scope_map[final_scope] = list(final_group_set)
+            
+        group_record.scope_map = scope_map
+
+    
     def push_mask(self, mask):
         if not isinstance(mask, np.ndarray):
             raise InputTypeError('mask is not a Numpy array')
@@ -223,11 +210,44 @@ class ProblemData:
         else:
             return self.response_variables
 
+
+
 class GroupRecord:
     def __init__(self, feature_record, scope_map, sparce_sample_abundances):
         self.feature_record = feature_record
         self.scope_map = scope_map
         self.sparce_sample_abundances = sparce_sample_abundances #should be numpy array
+
+#should split off the scope maps so that this can be run once per scope
+#should not be a method, because we don't want a reference to self
+def build_group_records(scope, group_to_object, sample_indices, parse_object_string):
+    group_records = dict()
+    n_samples = len(sample_indices)
+    
+    for group in group_to_object.keys():
+        objects = group_to_object[group]
+        
+        sparce_sample_abundances = []
+        feature_column = np.zeros((n_samples,))
+        for obj in objects:
+            sample_id = parse_object_string(obj)
+            assert sample_id, 'parsed sample_id is None or empty'
+            try:
+                feature_column[sample_indices[sample_id]] += 1
+            except KeyError:
+                continue
+            
+        for index in range(n_samples):
+            abundance = feature_column[index]
+            sparce_sample_abundances.append((index, abundance))
+
+        #copy group string to remove reference to group_to_object
+        feature_record = FeatureRecord(group[:], scope)
+            
+        group_record = GroupRecord(feature_record, None, sparce_sample_abundances)
+        group_records[group] = group_record
+    
+        return group_records
         
 @profile
 def build_problem_data(group_map_files, mapping_file, prediction_field,
