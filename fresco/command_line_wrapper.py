@@ -18,7 +18,6 @@ from fresco.model_outcome import ModelOutcome
 from score_scope_optimization import scope_optimization_cross_validation
 import inspect
 
-
 def command_line_argument_wrapper(model, n_iterations, group_map_files,
         start_level, mapping_file, prediction_field, include_only, negate,
         n_maintain, n_generate, score_predictions_function, split_abun_coef,

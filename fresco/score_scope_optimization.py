@@ -4,6 +4,8 @@ from score_group_vector import build_model_outcome
 
 def scope_optimization_cross_validation(scope_optimization, initial_feature_vector, problem_data, vector_model, prediction_scoring_function, n_cross_folds, n_processes):
     masks = [(train, test) for train, test in KFold(problem_data.get_n_unmasked_samples(), n_folds=n_cross_folds)]
+    
+    #Perform the optimization process for each fold.
     n_iterations = scope_optimization.n_iterations
     training_outcomes = [[] for i in range(n_iterations)]
     for train_mask, test_mask in masks:
@@ -13,6 +15,7 @@ def scope_optimization_cross_validation(scope_optimization, initial_feature_vect
         for iteration in range(n_iterations):
             training_outcomes[iteration].append(iteration_outcomes[iteration])
     
+    #Score the resulting feature vectors for each fold in parallel.
     process_definitions = []
     for iteration in range(n_iterations):
         for mask_index in range(len(masks)):

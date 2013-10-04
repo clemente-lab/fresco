@@ -13,8 +13,10 @@ class ScopeOptimization():
         return_set = [outcome_set[0]]
     
         for iteration in range(1, self.n_iterations):
+            #Note: Vector generation not currently parallel
             new_vector_set = self.vector_generator.generate_vectors(outcome_set)
      
+            #Note: The entire problem_data object does not have to be copied to test a vector, only the column vector.
             testing_functions = [ProcessDefinition(self.group_vector_scorer.score_feature_vector, positional_arguments=(problem_data, new_vector)) for new_vector in new_vector_set]
             result_handler = outcome_set.append
             multiprocess_functions(testing_functions, result_handler, self.n_processes)

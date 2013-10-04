@@ -10,6 +10,12 @@ import inspect
 class ProblemData:
     @profile
     def __init__(self, group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string=parse_object_string_sample):
+        """
+        Builds a ProblemData object which is responsible for providing an interface to all aspects of a dataset.
+        
+        Args: object_to_group, group_to_object, 
+            
+        """
         if not isinstance(group_to_object, types.ListType):
             raise InputTypeError('group_to_object should be a list type')
         if not isinstance(object_to_group, types.ListType):
@@ -30,7 +36,7 @@ class ProblemData:
             raise InputTypeError('parse_object_sample should take at least one argument')
         
         self.response_variables = np.array([sample_to_response[sample] for sample in sample_to_response.keys()])
-        self.max_scope = len(object_to_group)-1
+        self.n_scopes = len(object_to_group)
         self.n_unmasked_samples = len(sample_to_response)
         self.mask_length_stack = []
         self.aggregate_index_mask = None
@@ -41,19 +47,16 @@ class ProblemData:
         assert all([self.response_variables[sample_indices[sample]] == sample_to_response[sample] for sample in sample_to_response.keys()]),\
             "sample_indices are not able to map correctly back to the response variable"
 
-        self.feature_columns = [None for i in range(len(group_to_object))]
-        self.feature_records = [None for i in range(len(group_to_object))]
-        self.scope_map = [None for i in range(len(group_to_object))]
-
-        def build_scope_columns_records_splits(scope, group_to_object, object_to_group, sample_indices):
-            feature_records = dict()
-            feature_columns = dict()
-            scope_map = dict()
+        def build_group_records(scope, group_to_object, object_to_group, sample_indices):
+            group_records = dict()
+            n_scopes = len(group_to_object)
+            n_samples = len(sample_indices)
             
             for group in group_to_object[scope]:
                 objects = group_to_object[scope][group]
-
-                feature_column = np.zeros(len(sample_indices))
+                
+                sparce_sample_abundances = []
+                feature_column = np.zeros((n_samples,))
                 for obj in objects:
                     sample_id = parse_object_string(obj)
                     assert sample_id, 'parsed sample_id is None or empty'
@@ -61,15 +64,17 @@ class ProblemData:
                         feature_column[sample_indices[sample_id]] += 1
                     except KeyError:
                         continue
-                feature_columns[group] = feature_column
+                    
+                for index in range(n_samples):
+                    abundance = feature_column[index]
+                    sparce_sample_abundances.append((index, abundance))
 
-                feature_abundance = feature_column.sum()
-                feature_id = group
-                feature_records[group] = FeatureRecord(feature_id, scope, feature_abundance)
+                feature_record = FeatureRecord(group, scope)
 
-                for final_scope in range(len(group_to_object)):
+                scope_map = [None] * n_scopes
+                for final_scope in range(n_scopes):
                     if final_scope == scope:
-                        scope_map[(group, final_scope)] = [(scope, group)]
+                        scope_map[final_scope] = [(scope, group)]
                         continue
 
                     final_group_set = set()
@@ -78,53 +83,50 @@ class ProblemData:
                             final_group_set.add( (final_scope, object_to_group[final_scope][obj]) )
                         except KeyError:
                             continue
-                    scope_map[(group, final_scope)] = list(final_group_set)
+                    scope_map[final_scope] = list(final_group_set)
                     
-            return (feature_columns, feature_records, scope_map)
+                group_record = GroupRecord(feature_record, scope_map, sparce_sample_abundances)
+                group_records[group] = group_record
+            
+            return group_records
 
         process_definitions = []
         results = []
         for scope in range(len(group_to_object)):
-            process_definitions.append( ProcessDefinition(build_scope_columns_records_splits, positional_arguments=(scope, group_to_object, object_to_group, sample_indices), tag=scope) )
+            process_definitions.append( ProcessDefinition(build_group_records, positional_arguments=(scope, group_to_object, object_to_group, sample_indices), tag=scope) )
         multiprocess_functions(process_definitions, results.append, n_processes)
 
+        self.group_records = [None] * self.n_scopes
         for scope, result in results:
-            feature_columns, feature_records, scope_map = result
-            self.feature_columns[scope] = feature_columns
-            self.feature_records[scope] = feature_records
-            self.scope_map[scope] = scope_map
-        for scope in range(len(self.scope_map)):
-            assert isinstance(self.feature_records[scope], types.DictType),\
-                "feature_records is not a list of dicts"
-            assert isinstance(self.feature_columns[scope], types.DictType),\
-                "feature_columns is not a list of dicts"
-            assert isinstance(self.scope_map[scope], types.DictType),\
-                "scope is not a list of dicts"
-            for key in self.feature_records[scope]:
-                assert self.feature_records[scope][key].get_id() == key,\
-                    "feature_record had mismatched id to it's key"
-                assert self.feature_records[scope][key].get_scope() == scope,\
-                    "feature_record had mismatched scope to it's key"
-            for key in self.feature_columns[scope]:
-                assert self.feature_columns[scope][key].shape[0] == self.n_unmasked_samples
-            for key in self.scope_map[scope]:
-                assert isinstance(key, types.TupleType) and len(key) == 2,\
-                    "scope_map key is not a scope/group tuple"
-                final_groups = self.scope_map[scope][key]
-                assert isinstance(final_groups, types.ListType),\
-                    "scope_map includes a an entry that is not a list"
-                #Note: this is a pretty good test of the scope_map that
-                #was helpful in debugging, but it has nasty complexity
-                #==============================================================
-                # for t in final_groups:
-                #    assert isinstance(t, types.TupleType) and len(t) == 2,\
-                #        "scope_map includes an entry that is not a scope/group pair"
-                #    final_scope, final_group = t
-                #    final_objs = group_to_object[final_scope][final_group]
-                #    objs = group_to_object[scope][key[0]]
-                #    assert any([final_obj in objs for final_obj in final_objs]),\
-                #        "scope_map has an entry that lists a group which shares no objects"
-                #==============================================================
+            self.group_records[scope] = result
+        
+        if False:    
+            for scope in range(self.n_scopes):
+                for key in self.feature_records[scope]:
+                    assert self.feature_records[scope][key].get_id() == key,\
+                        "feature_record had mismatched id to it's key"
+                    assert self.feature_records[scope][key].get_scope() == scope,\
+                        "feature_record had mismatched scope to it's key"
+                for key in self.feature_columns[scope]:
+                    assert self.feature_columns[scope][key].shape[0] == self.n_unmasked_samples
+                for key in self.scope_map[scope]:
+                    assert isinstance(key, types.TupleType) and len(key) == 2,\
+                        "scope_map key is not a scope/group tuple"
+                    final_groups = self.scope_map[scope][key]
+                    assert isinstance(final_groups, types.ListType),\
+                        "scope_map includes a an entry that is not a list"
+                    #Note: this is a pretty good test of the scope_map that
+                    #was helpful in debugging, but it has nasty complexity
+                    #==============================================================
+                    # for t in final_groups:
+                    #    assert isinstance(t, types.TupleType) and len(t) == 2,\
+                    #        "scope_map includes an entry that is not a scope/group pair"
+                    #    final_scope, final_group = t
+                    #    final_objs = group_to_object[final_scope][final_group]
+                    #    objs = group_to_object[scope][key[0]]
+                    #    assert any([final_obj in objs for final_obj in final_objs]),\
+                    #        "scope_map has an entry that lists a group which shares no objects"
+                    #==============================================================
 
     def push_mask(self, mask):
         if not isinstance(mask, np.ndarray):
@@ -151,22 +153,42 @@ class ProblemData:
         return pop_length
         
     def get_feature_abundance(self, scope, group):
-        return sum(self.get_feature_column(scope, group))
+        try:
+            #is sum(self.get_feature_column(scope, group)) faster?
+            if self.aggregate_index_mask != None:
+                masked_set = set(self.aggregate_index_mask)
+                return sum([abundance for index, abundance in 
+                            self.group_records[scope][group].sparce_sample_abundances
+                            if not index in masked_set])
+            else:
+                return sum([abundance for index, abundance in 
+                            self.group_records[scope][group].sparce_sample_abundances])
+        except KeyError:
+            raise KeyError("group (%s) not found at scope (%s)" %(group, scope))
     
     def get_n_unmasked_samples(self):
         return self.n_unmasked_samples
 
     def get_max_scope(self):
-        return self.max_scope
+        return self.n_scopes - 1
 
     def get_feature_column(self, scope, group):
         if not isinstance(scope, types.IntType) or scope < 0 or scope > self.get_max_scope():
             raise InputTypeError("scope (%s) is not a valid scope index" %scope)
+        
         try:
+            group_record = self.group_records[scope][group]
+            
+            #convert from sparce to dense format
+            feature_column = np.zeros(self.n_unmasked_samples)
+            for index, abundance in group_record.sparce_sample_abundances:
+                feature_column[index] = abundance
+            
             if self.aggregate_index_mask != None:
-                return self.feature_columns[scope][group][self.aggregate_index_mask]
+                return feature_column[self.aggregate_index_mask]
             else:
-                return self.feature_columns[scope][group]
+                return feature_column
+            
         except KeyError:
             raise KeyError("group (%s) not found at scope (%s)" %(group, scope))
 
@@ -174,7 +196,7 @@ class ProblemData:
         if not isinstance(scope, types.IntType) or scope < 0 or scope > self.get_max_scope():
             raise InputTypeError("scope (%s) is not a valid scope index" %scope)
         try:
-            return self.feature_records[scope][group]
+            return self.group_records[scope][group].feature_record
         except KeyError:
             raise KeyError("group (%s) not found at scope (%s)" %(group, scope))
 
@@ -183,8 +205,9 @@ class ProblemData:
             raise InputTypeError("scope (%s) is not a valid scope index" %scope)
         if not isinstance(final_scope, types.IntType) or final_scope < 0 or final_scope > self.get_max_scope():
             raise InputTypeError("final_scope (%s) is not a valid scope index" %final_scope)
+        
         try:
-            return self.scope_map[scope][(group, final_scope)]
+            return self.group_records[scope][group].scope_map[final_scope]
         except KeyError:
             raise KeyError("(group, final_scope) (%s, %s) not found at scope (%s)" %(group, final_scope, scope))
 
@@ -194,6 +217,13 @@ class ProblemData:
         else:
             return self.response_variables
 
+class GroupRecord:
+    def __init__(self, feature_record, scope_map, sparce_sample_abundances):
+        self.feature_record = feature_record
+        self.scope_map = scope_map
+        self.sparce_sample_abundances = sparce_sample_abundances #should be numpy array
+        
+@profile
 def build_problem_data(group_map_files, mapping_file, prediction_field,
                        start_level, include_only, negate, n_processes, parse_object_string=parse_object_string_sample):
     simple_var_types = [
@@ -253,7 +283,6 @@ def build_problem_data(group_map_files, mapping_file, prediction_field,
             return False
         except KeyError:
             raise KeyError('include_only[0] is not a field in mapping_file')
-        
 
     sample_to_response = {}
     for samplename in samplenames:
@@ -270,7 +299,7 @@ def build_problem_data(group_map_files, mapping_file, prediction_field,
 
     problem_data = ProblemData(group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string)
 
-    feature_vector = FeatureVector([FeatureRecord(group, start_level, problem_data.get_feature_abundance(start_level, group))
+    feature_vector = FeatureVector([FeatureRecord(group, start_level)
                                     for group in group_to_object[start_level].keys()])
 
     return problem_data, feature_vector
