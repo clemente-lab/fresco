@@ -7,8 +7,6 @@ from fresco.parse_input_files import read_split_file, read_mapping_file
 from feature_vector import FeatureVector
 import inspect
 
-import gc
-
 class ProblemData:
     def __init__(self, group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string=parse_object_string_sample):
         """
@@ -64,33 +62,33 @@ class ProblemData:
             for group in self.group_records[scope]:
                 self.build_scope_map(self.group_records[scope][group], group_to_object, object_to_group)
         
-        if False:    
-            for scope in range(self.n_scopes):
-                for key in self.feature_records[scope]:
-                    assert self.feature_records[scope][key].get_id() == key,\
-                        "feature_record had mismatched id to it's key"
-                    assert self.feature_records[scope][key].get_scope() == scope,\
-                        "feature_record had mismatched scope to it's key"
-                for key in self.feature_columns[scope]:
-                    assert self.feature_columns[scope][key].shape[0] == self.n_unmasked_samples
-                for key in self.scope_map[scope]:
-                    assert isinstance(key, types.TupleType) and len(key) == 2,\
-                        "scope_map key is not a scope/group tuple"
-                    final_groups = self.scope_map[scope][key]
-                    assert isinstance(final_groups, types.ListType),\
-                        "scope_map includes a an entry that is not a list"
-                    #Note: this is a pretty good test of the scope_map that
-                    #was helpful in debugging, but it has nasty complexity
-                    #==============================================================
-                    # for t in final_groups:
-                    #    assert isinstance(t, types.TupleType) and len(t) == 2,\
-                    #        "scope_map includes an entry that is not a scope/group pair"
-                    #    final_scope, final_group = t
-                    #    final_objs = group_to_object[final_scope][final_group]
-                    #    objs = group_to_object[scope][key[0]]
-                    #    assert any([final_obj in objs for final_obj in final_objs]),\
-                    #        "scope_map has an entry that lists a group which shares no objects"
-                    #==============================================================
+   
+        for scope in range(self.n_scopes):
+            for key in self.feature_records[scope]:
+                assert self.feature_records[scope][key].get_id() == key,\
+                    "feature_record had mismatched id to it's key"
+                assert self.feature_records[scope][key].get_scope() == scope,\
+                    "feature_record had mismatched scope to it's key"
+            for key in self.feature_columns[scope]:
+                assert self.feature_columns[scope][key].shape[0] == self.n_unmasked_samples
+            for key in self.scope_map[scope]:
+                assert isinstance(key, types.TupleType) and len(key) == 2,\
+                    "scope_map key is not a scope/group tuple"
+                final_groups = self.scope_map[scope][key]
+                assert isinstance(final_groups, types.ListType),\
+                    "scope_map includes a an entry that is not a list"
+                #Note: this is a pretty good test of the scope_map that
+                #was helpful in debugging, but it has nasty complexity
+                #==============================================================
+                # for t in final_groups:
+                #    assert isinstance(t, types.TupleType) and len(t) == 2,\
+                #        "scope_map includes an entry that is not a scope/group pair"
+                #    final_scope, final_group = t
+                #    final_objs = group_to_object[final_scope][final_group]
+                #    objs = group_to_object[scope][key[0]]
+                #    assert any([final_obj in objs for final_obj in final_objs]),\
+                #        "scope_map has an entry that lists a group which shares no objects"
+                #==============================================================
 
     def build_scope_map(self, group_record, group_to_object, object_to_group):
         scope_map = [None] * self.n_scopes

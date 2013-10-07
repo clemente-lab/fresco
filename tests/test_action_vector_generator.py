@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division
 from unittest import TestCase, main
-from feature_vector import FeatureVector
+from fresco.feature_vector import FeatureVector
 from fresco.action_vector_generator import ActionVectorGenerator, SplitAction, MergeAction, DeleteAction
 from fresco.group_problem_data import build_problem_data
 from fresco.model_outcome import ModelOutcome
@@ -44,8 +44,6 @@ class ActionVectorGeneratorTests(TestCase):
     def test_generate_action_scores(self):
         """
         Test the score generation process.
-        
-        Testing 
         """
         
         n_iterations = 10

@@ -128,7 +128,7 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
         "build_problem_data did not return a GroupProblemData"
     
     initial_feature_ids = problem_data.get_group_ids(start_level)
-    initial_feature_vector = FeatureVector([problem_data.get_feature_record(start_level, id) for id in initial_feature_ids])
+    initial_feature_vector = FeatureVector([problem_data.get_feature_record(start_level, feature_id) for feature_id in initial_feature_ids])
     assert isinstance(initial_feature_vector, FeatureVector),\
         "build_problem_data did not return a FeatureVector"
     
