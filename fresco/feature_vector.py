@@ -9,7 +9,7 @@ class FeatureVector:
         return self.rec_list.pop(index)
 
 class FeatureRecord:
-    def __init__(self, feature_id, scope, abundance):
+    def __init__(self, feature_id, scope):
         self.feature_id = feature_id
         self.scope = scope
         

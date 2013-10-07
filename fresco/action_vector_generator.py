@@ -1,6 +1,7 @@
 import numpy as np
 from fresco.vector_generator import VectorGenerator
 from fresco.feature_vector import FeatureVector
+from fresco.utils import normalized_scores
 
 class ActionVectorGenerator(VectorGenerator):
     def __init__(self, group_actions, n_generate, problem_data):
@@ -15,24 +16,9 @@ class ActionVectorGenerator(VectorGenerator):
         return vectors
 
     def generate_action_vector(self, outcome):
-        def std_dev_dists(value_list):
-            value_list = np.array(value_list)
-            avg = np.mean(value_list)
-            std = np.std(value_list)
-        
-            dists = [(s-avg)/std for s in value_list]
-            return dists
+        action_scores = self.generate_action_scores(outcome)
         
         feature_vector = outcome.feature_vector
-
-        feature_abundances = [self.problem_data.get_feature_abundance(record.get_scope(), record.get_id())
-                              for record in feature_vector.get_record_list()]
-        feature_scores = outcome.feature_scores
-        
-        abundance_deviations = std_dev_dists(feature_abundances)
-        score_deviations = std_dev_dists(feature_scores)
-        action_scores = [[action.score(abundance_deviations[i], score_deviations[i], feature_vector.get_record_list()[i]) for i in range(len(feature_vector.get_record_list()))]
-                          for action in self.group_actions]
         
         feature_vectors = []
         for i in range(self.n_generate):
@@ -53,32 +39,30 @@ class ActionVectorGenerator(VectorGenerator):
  
         return feature_vectors
         
+    def generate_action_scores(self, outcome):
+        def std_dev_dists(value_list):
+            value_list = np.array(value_list)
+            avg = np.mean(value_list)
+            std = np.std(value_list)
+            dists = [(s-avg)/std for s in value_list]
+            return dists
+        
+        feature_vector = outcome.feature_vector
+
+        feature_abundances = [self.problem_data.get_feature_abundance(record.get_scope(), record.get_id())
+                              for record in feature_vector.get_record_list()]
+        feature_scores = outcome.feature_scores
+        
+        abundance_deviations = std_dev_dists(feature_abundances)
+        score_deviations = std_dev_dists(feature_scores)
+        action_scores = [[action.score(abundance_deviations[i], score_deviations[i], feature_vector.get_record_list()[i]) for i in range(len(feature_vector.get_record_list()))]
+                          for action in self.group_actions]
+        
+        return action_scores
+        
     def stochastic_action_selection(self, action_scores):
-        def normalize_scores(scores, exclude_list):
-            invalid_list = []
-            for i in range(len(scores)):
-                if scores[i] == None:
-                    scores[i] = 0
-                    invalid_list.append(i)
-                    
-            mini = min(scores)
-            if float(mini) < 0:
-                scores -= mini
-
-            for e in exclude_list:
-                scores[e] = 0
-            for i in invalid_list:
-                scores[i] = 0
-            
-            sumi = sum(scores)
-            if float(sumi) != 0:
-                scores /= sumi
-                return scores
-            else: #since all elements are non-negative, all elements must be 0
-                return []
-
         def sample_from_scores(scores, proportion, exclude_list):
-            scores = normalize_scores(scores, exclude_list)
+            scores = normalized_scores(scores, exclude_list)
 
             np.random.seed() #necessary for mutlithreaded code
             n_nonzero = len([score for score in scores if score != 0])
@@ -94,7 +78,7 @@ class ActionVectorGenerator(VectorGenerator):
         
         #selection actions for priority in the order they were passed in
         for action_index in range(len(self.group_actions)):
-            action_sample = sample_from_scores(action_scores[action_index][:], self.group_actions[action_index].get_proportion(), exclude_list)
+            action_sample = sample_from_scores(action_scores[action_index], self.group_actions[action_index].get_proportion(), exclude_list)
             for i in action_sample:
                 assert action_scores[action_index][i] != None
                 actions[i] = self.group_actions[action_index]

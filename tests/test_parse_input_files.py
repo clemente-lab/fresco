@@ -30,9 +30,6 @@ class ParseInputFilesTests(TestCase):
 
     def test_read_split_file_invalid_input(self):
         """Test parsing invalid input raises an error."""
-        with self.assertRaises(InputTypeError):
-            _ = read_split_file('feature_map.txt')
-
         with self.assertRaises(FeatureMapFileFormatError):
             _ = read_split_file(self.split_dup_groups_lines)
 
@@ -48,9 +45,6 @@ class ParseInputFilesTests(TestCase):
 
     def test_read_mapping_file_invalid_input(self):
         """Test parsing invalid input raises an error."""
-        with self.assertRaises(InputTypeError):
-            _ = read_mapping_file('map.txt')
-
         with self.assertRaises(MappingFileFormatError):
             _ = read_mapping_file(self.map_empty_cells_lines)
 

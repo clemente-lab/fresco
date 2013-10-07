@@ -18,7 +18,6 @@ from fresco.model_outcome import ModelOutcome
 from score_scope_optimization import scope_optimization_cross_validation
 import inspect
 
-
 def command_line_argument_wrapper(model, n_iterations, group_map_files,
         start_level, mapping_file, prediction_field, include_only, negate,
         n_maintain, n_generate, score_predictions_function, split_abun_coef,
@@ -123,11 +122,16 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
 
     vector_model = GroupVectorModel(parse_model_string(model))
     group_vector_scorer = CrossValidationGroupVectorScorer(score_predictions_function, vector_model, n_cross_folds)
-    problem_data, initial_feature_vector = build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, negate, n_processes)
+    
+    problem_data = build_problem_data(group_map_files, mapping_file, prediction_field, start_level, include_only, negate, n_processes)
     assert isinstance(problem_data, ProblemData),\
         "build_problem_data did not return a GroupProblemData"
+    
+    initial_feature_ids = problem_data.get_group_ids(start_level)
+    initial_feature_vector = FeatureVector([problem_data.get_feature_record(start_level, feature_id) for feature_id in initial_feature_ids])
     assert isinstance(initial_feature_vector, FeatureVector),\
         "build_problem_data did not return a FeatureVector"
+    
     group_actions = [SplitAction(problem_data, split_proportion, split_abun_coef, split_score_coef),
                      MergeAction(problem_data, merge_proportion, merge_abun_coef, merge_score_coef),
                      DeleteAction(problem_data, delete_proportion, delete_abun_coef, delete_score_coef)]

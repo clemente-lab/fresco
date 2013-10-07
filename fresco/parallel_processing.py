@@ -1,6 +1,12 @@
 import multiprocessing
 
 def multiprocess_functions(process_definitions, result_handler, n_procs):
+    #special case for serial execution
+    if n_procs == 0:
+        for process_definition in process_definitions:
+            result_handler(process_definition.process())
+        return
+    
     processes = []
     result_queue = multiprocessing.Queue()
 
@@ -19,7 +25,6 @@ def multiprocess_functions(process_definitions, result_handler, n_procs):
                 if not process.is_alive():
                     processes.pop(pn)
                 break
-        
 
     for process_definition in process_definitions:
         wait_for_finished(n_procs)
