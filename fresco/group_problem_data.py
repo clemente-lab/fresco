@@ -10,7 +10,6 @@ import inspect
 import gc
 
 class ProblemData:
-    @profile
     def __init__(self, group_to_object, object_to_group, sample_to_response, n_processes, parse_object_string=parse_object_string_sample):
         """
         Builds a ProblemData object which is responsible for providing an interface to all aspects of a dataset.
@@ -19,7 +18,7 @@ class ProblemData:
             
         """
         if not isinstance(group_to_object, types.ListType):
-            raise InputTypeError('group_to_object should be a list type')
+            raise InputTypeError('group_to_object should be a list type')   
         if not isinstance(object_to_group, types.ListType):
             raise InputTypeError('object_to_group should be a list type')
         if not len(object_to_group) == len(group_to_object):
@@ -249,7 +248,6 @@ def build_group_records(scope, group_to_object, sample_indices, parse_object_str
     
         return group_records
         
-@profile
 def build_problem_data(group_map_files, mapping_file, prediction_field,
                        start_level, include_only, negate, n_processes, parse_object_string=parse_object_string_sample):
     simple_var_types = [

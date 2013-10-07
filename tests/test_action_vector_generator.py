@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 from __future__ import division
 from unittest import TestCase, main
-
+from feature_vector import FeatureVector
 from fresco.action_vector_generator import ActionVectorGenerator, SplitAction, MergeAction, DeleteAction
 from fresco.group_problem_data import build_problem_data
 from fresco.model_outcome import ModelOutcome
 
 
 class ActionVectorGeneratorTests(TestCase):
-    """Tests for functions in the parallel_processing module."""
+    """Tests for functions in the action_vector_generator module."""
 
     def setUp(self):
         """Initialize data used in the tests."""      
@@ -17,8 +17,11 @@ class ActionVectorGeneratorTests(TestCase):
         include_only = None
         negate = False
         n_processes = 1
-        self.problem_data, self.initial_feature_vector = build_problem_data(group_map_lines, mapping_lines, prediction_field, start_level, include_only, negate, n_processes, parse_object_string=parse_object_string)
+        self.problem_data = build_problem_data(group_map_lines, mapping_lines, prediction_field, start_level, include_only, negate, n_processes, parse_object_string=parse_object_string)
         
+        initial_feature_ids = self.problem_data.get_group_ids(start_level)
+        self.initial_feature_vector = FeatureVector([self.problem_data.get_feature_record(start_level, id) for id in initial_feature_ids])
+    
         self.split_proportion = 0.5
         self.split_abun_coef = 0
         self.split_score_coef = -1
@@ -39,18 +42,24 @@ class ActionVectorGeneratorTests(TestCase):
 
         
     def test_generate_action_scores(self):
-        """Test the score generation process."""
+        """
+        Test the score generation process.
+        
+        Testing 
+        """
         
         n_iterations = 10
         feature_vector = self.initial_feature_vector
         max_length = 10000
         
         for i in range(n_iterations):
+            #Generate action scores for each group in a feature vector
             if len(feature_vector.rec_list) > max_length:
                 feature_vector.rec_list = feature_vector.rec_list[-max_length:]
             outcome = ModelOutcome(feature_vector, [r for r in range(len(feature_vector.get_record_list()))], prediction_quality=0, predictions=[])
             action_scores = self.action_vector_generator.generate_action_scores(outcome)
             
+            #Test required invariants over the returned score values, like None for inapplicable actions
             self.assertEquals(len(action_scores), len(self.group_actions))
             for action_index in range(len(action_scores)):
                 scores = action_scores[action_index]
@@ -67,8 +76,9 @@ class ActionVectorGeneratorTests(TestCase):
                         if scores[feature_index] == None:
                             self.assertEquals(feature_vector.get_record_list()[feature_index].get_scope(), self.problem_data.get_max_scope())
                         else:
-                            self.assertEquals(feature_vector.get_record_list()[feature_index].get_scope(), self.problem_data.get_max_scope())
+                            self.assertNotEquals(feature_vector.get_record_list()[feature_index].get_scope(), self.problem_data.get_max_scope())
 
+            #Have the vector generator create a new vector to test
             feature_vector = self.action_vector_generator.generate_action_vector(outcome)[0]
 
 def parse_object_string(object_string):
