@@ -44,6 +44,11 @@ class ActionVectorGenerator(VectorGenerator):
             value_list = np.array(value_list)
             avg = np.mean(value_list)
             std = np.std(value_list)
+            #dists = None
+            #if std == 0:
+            #    dists = [0 for s in value_list]
+            #else:    
+            #    dists = [(s-avg)/std for s in value_list]
             dists = [(s-avg)/std for s in value_list]
             return dists
         
