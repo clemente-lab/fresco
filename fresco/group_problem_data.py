@@ -46,8 +46,6 @@ class ProblemData:
         assert all([self.response_variables[sample_indices[sample]] == sample_to_response[sample] for sample in sample_to_response.keys()]),\
             "sample_indices are not able to map correctly back to the response variable"
 
-        
-
         process_definitions = []
         results = []
         for scope in range(len(group_to_object)):
@@ -62,33 +60,25 @@ class ProblemData:
             for group in self.group_records[scope]:
                 self.build_scope_map(self.group_records[scope][group], group_to_object, object_to_group)
         
-   
+
         for scope in range(self.n_scopes):
-            for key in self.feature_records[scope]:
-                assert self.feature_records[scope][key].get_id() == key,\
+            for key in self.group_records[scope]:
+                assert self.group_records[scope][key].feature_record.get_id() == key,\
                     "feature_record had mismatched id to it's key"
-                assert self.feature_records[scope][key].get_scope() == scope,\
+                assert self.group_records[scope][key].feature_record.get_scope() == scope,\
                     "feature_record had mismatched scope to it's key"
-            for key in self.feature_columns[scope]:
-                assert self.feature_columns[scope][key].shape[0] == self.n_unmasked_samples
-            for key in self.scope_map[scope]:
-                assert isinstance(key, types.TupleType) and len(key) == 2,\
-                    "scope_map key is not a scope/group tuple"
-                final_groups = self.scope_map[scope][key]
-                assert isinstance(final_groups, types.ListType),\
-                    "scope_map includes a an entry that is not a list"
-                #Note: this is a pretty good test of the scope_map that
-                #was helpful in debugging, but it has nasty complexity
-                #==============================================================
-                # for t in final_groups:
-                #    assert isinstance(t, types.TupleType) and len(t) == 2,\
-                #        "scope_map includes an entry that is not a scope/group pair"
-                #    final_scope, final_group = t
-                #    final_objs = group_to_object[final_scope][final_group]
-                #    objs = group_to_object[scope][key[0]]
-                #    assert any([final_obj in objs for final_obj in final_objs]),\
-                #        "scope_map has an entry that lists a group which shares no objects"
-                #==============================================================
+                    #Note: this is a pretty good test of the scope_map that
+                    #was helpful in debugging, but it has nasty complexity
+                    #==============================================================
+                    # for t in final_groups:
+                    #    assert isinstance(t, types.TupleType) and len(t) == 2,\
+                    #        "scope_map includes an entry that is not a scope/group pair"
+                    #    final_scope, final_group = t
+                    #    final_objs = group_to_object[final_scope][final_group]
+                    #    objs = group_to_object[scope][key[0]]
+                    #    assert any([final_obj in objs for final_obj in final_objs]),\
+                    #        "scope_map has an entry that lists a group which shares no objects"
+                    #==============================================================
 
     def build_scope_map(self, group_record, group_to_object, object_to_group):
         scope_map = [None] * self.n_scopes
@@ -244,7 +234,7 @@ def build_group_records(scope, group_to_object, sample_indices, parse_object_str
         group_record = GroupRecord(feature_record, None, sparce_sample_abundances)
         group_records[group] = group_record
     
-        return group_records
+    return group_records
         
 def build_problem_data(group_map_files, mapping_file, prediction_field,
                        start_level, include_only, negate, n_processes, parse_object_string=parse_object_string_sample):
