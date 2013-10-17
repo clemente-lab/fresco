@@ -249,7 +249,7 @@ def build_problem_data(group_map_files, mapping_file, prediction_field,
     for var_name, var_type in simple_var_types:
         check_input_type(var_name, locals()[var_name], var_type)
     if include_only != None:
-        if not isinstance(include_only[0], types.StringTyp):
+        if not isinstance(include_only[0], types.StringType):
             raise InputTypeError("include_only[0] should be of type string")
         if not isinstance(include_only[1], types.ListType) or \
                 not all([isinstance(value, types.StringType) for value in include_only[1]]):
