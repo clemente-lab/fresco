@@ -5,6 +5,7 @@ from fresco.feature_vector import FeatureRecord
 from fresco.parallel_processing import multiprocess_functions, ProcessDefinition
 from fresco.parse_input_files import read_split_file, read_mapping_file
 from feature_vector import FeatureVector
+from mask_stack import MaskStack
 import inspect
 
 class ProblemData:
@@ -37,8 +38,9 @@ class ProblemData:
         self.response_variables = np.array([sample_to_response[sample] for sample in sample_to_response.keys()])
         self.n_scopes = len(object_to_group)
         self.n_unmasked_samples = len(sample_to_response)
-        self.mask_length_stack = []
-        self.aggregate_index_mask = None
+        
+        # Keep a stack of masks for various levels of data partitions
+        self.mask_stack = MaskStack(self.n_unmasked_samples)
 
         sample_indices = dict([(sample_to_response.keys()[index], index) for index
                                in range(len(sample_to_response.keys()))])
@@ -106,40 +108,18 @@ class ProblemData:
 
     
     def push_mask(self, mask):
-        if not isinstance(mask, np.ndarray):
-            raise InputTypeError('mask is not a Numpy array')
-        self.mask_length_stack.append(mask.shape[0])
-        
-        if self.aggregate_index_mask == None:
-            self.aggregate_index_mask = mask
-        else:
-            self.aggregate_index_mask = np.hstack( (self.aggregate_index_mask, mask) )
-        
+        self.mask_stack.push_mask(mask)
+
     def pop_mask(self):
-        if len(self.mask_length_stack) == 0:
-            return None
-        pop_length = self.mask_length_stack.pop()
-        
-        assert self.aggregate_index_mask.shape[0] >= pop_length,\
-            "the aggregate_index_mask is missing entries"
-        
-        self.aggregate_index_mask = self.aggregate_index_mask[:-pop_length]
-        if self.aggregate_index_mask.shape[0] == 0:
-            self.aggregate_index_mask = None
-        
-        return pop_length
+        self.mask_stack.pop_mask()
         
     def get_feature_abundance(self, scope, group):
         try:
             #is sum(self.get_feature_column(scope, group)) faster?
-            if self.aggregate_index_mask != None:
-                masked_set = set(self.aggregate_index_mask)
-                return sum([abundance for index, abundance in 
-                            self.group_records[scope][group].sparce_sample_abundances
-                            if not index in masked_set])
-            else:
-                return sum([abundance for index, abundance in 
-                            self.group_records[scope][group].sparce_sample_abundances])
+            mask = self.mask_stack.get_aggregate_mask()
+            return sum([abundance for index, abundance in 
+                        self.group_records[scope][group].sparce_sample_abundances
+                        if mask[index]])
         except KeyError:
             raise KeyError("group (%s) not found at scope (%s)" %(group, scope))
     
@@ -155,20 +135,17 @@ class ProblemData:
     def get_feature_column(self, scope, group):
         if not isinstance(scope, types.IntType) or scope < 0 or scope > self.get_max_scope():
             raise InputTypeError("scope (%s) is not a valid scope index" %scope)
-        
+
         try:
             group_record = self.group_records[scope][group]
-            
+
             #convert from sparce to dense format
             feature_column = np.zeros(self.n_unmasked_samples)
             for index, abundance in group_record.sparce_sample_abundances:
                 feature_column[index] = abundance
-            
-            if self.aggregate_index_mask != None:
-                return feature_column[self.aggregate_index_mask]
-            else:
-                return feature_column
-            
+
+            mask = self.mask_stack.get_aggregate_mask()
+            return feature_column[mask] 
         except KeyError:
             raise KeyError("group (%s) not found at scope (%s)" %(group, scope))
 
@@ -192,12 +169,8 @@ class ProblemData:
             raise KeyError("(group, final_scope) (%s, %s) not found at scope (%s)" %(group, final_scope, scope))
 
     def get_response_variables(self):
-        if self.aggregate_index_mask != None:
-            return self.response_variables[self.aggregate_index_mask]
-        else:
-            return self.response_variables
-
-
+        mask = self.mask_stack.get_aggregate_mask()
+        return self.response_variables[mask]
 
 class GroupRecord:
     def __init__(self, feature_record, scope_map, sparce_sample_abundances):

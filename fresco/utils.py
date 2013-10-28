@@ -42,8 +42,9 @@ def get_list_accuracy(y1, y2):
         for e1, e2 in zip(y1, y2):
             if e1 == e2:
                 match_count += 1
-
-        return match_count / len(y1)
+             
+        score = float(match_count) / len(y1)
+        return score
 
 def normalized_scores(scores, exclude_list):
     scores = scores[:]
