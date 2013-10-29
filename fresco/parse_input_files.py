@@ -1,6 +1,3 @@
-import types
-from fresco.utils import InputTypeError
-
 #Given an open file that maps group names to object names, get maps of group -> object, object -> group  
 #Each line of the file should be a tab-separated list of names, where object names follow group name     
 #For example:                                                                                            

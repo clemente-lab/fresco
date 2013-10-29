@@ -1,4 +1,6 @@
 import numpy as np
+import collections  
+
 
 def write_to_file(lines, filepath):
     f = open(filepath, 'w')
@@ -59,15 +61,34 @@ def feature_output_lines(outcome, problem_data):
     
 def testing_output_lines(testing_output):
     lines = []
+    
+    def vector_stats(vector):
+        s = collections.Counter()
+        for record in vector.get_record_list():
+            s[record.get_scope()] += 1
+            
+        return sorted([(key, s[key]) for key in s.keys()])
 
-    header = ("ITERATION", "AVG_PREDICTION_SCORE", "STD_DEV_PREDICTION_SCORE")
+    def average_vector_stats(vectors):
+        stats = [vector_stats(vector) for vector in vectors]
+        ret = collections.Counter()
+        for stat in stats:
+            for scope, n in stat:
+                ret[scope] += n
+        for scope in ret.keys():
+            ret[scope] /= float(len(vectors))
+            
+        return sorted([(key, ret[key]) for key in ret.keys()])
+
+    header = ("ITERATION", "AVG_PREDICTION_SCORE", "STD_DEV_PREDICTION_SCORE", "AVG_FEATURE_VECTOR_SCOPE_DISTRIBUTION")
     properties = [header]
 
     for iteration in range(len(testing_output)):
         results = np.array([outcome.prediction_quality for outcome in testing_output[iteration]])
         avg = np.mean(results)
         std = np.std(results)
-        properties.append( (iteration, avg, std) ) 
+        stats = average_vector_stats([outcome.feature_vector for outcome in testing_output[iteration]])
+        properties.append( (iteration, avg, std, stats) )
 
     for prop in properties:
         line = ""

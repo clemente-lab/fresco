@@ -10,7 +10,7 @@ def scope_optimization_cross_validation(scope_optimization, initial_feature_vect
     n_iterations = scope_optimization.n_iterations
     training_outcomes = [[] for i in range(n_iterations)]
     for train_mask, test_mask in masks:
-        problem_data.push_mask(train_mask)
+        problem_data.push_mask(test_mask)
         iteration_outcomes = scope_optimization.optimize_vector(initial_feature_vector, problem_data, True)
         problem_data.pop_mask()
         for iteration in range(n_iterations):
@@ -23,6 +23,7 @@ def scope_optimization_cross_validation(scope_optimization, initial_feature_vect
             X = build_sample_matrix(problem_data, training_outcomes[iteration][mask_index].feature_vector)
             y = problem_data.get_response_variables()
             train_mask, test_mask = masks[mask_index]
+            
             process_definitions.append(ProcessDefinition(build_model_outcome_with_matrices, positional_arguments=
                                                          (training_outcomes[iteration][mask_index].feature_vector, vector_model,
                                                           prediction_scoring_function, X[train_mask], y[train_mask], X[test_mask], y[test_mask]),
@@ -31,9 +32,9 @@ def scope_optimization_cross_validation(scope_optimization, initial_feature_vect
     test_results = []
     multiprocess_functions(process_definitions, test_results.append, n_processes)
 
-    test_outcomes = [[None] * len(masks)] * scope_optimization.n_iterations
+    test_outcomes = [[None] * len(masks) for i in range(scope_optimization.n_iterations)]
     for tag, mask_result in test_results:
         iteration, mask_index = tag
         test_outcomes[iteration][mask_index] = mask_result
-    
+
     return test_outcomes

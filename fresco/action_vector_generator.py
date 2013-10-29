@@ -114,7 +114,15 @@ class SplitAction(GroupAction):
         feature_record = feature_vector.pop_feature(feature_index)
         new_groups = self.problem_data.get_split_groups(feature_record.get_scope(), feature_record.get_id(), feature_record.get_scope()+1)
         for group in new_groups:
-            feature_vector.get_record_list().append(self.problem_data.get_feature_record(*group))
+            new_feature_record = self.problem_data.get_feature_record(*group)
+            found = False
+            for record in feature_vector.get_record_list():
+                if new_feature_record.get_id() == record.get_id() and new_feature_record.get_scope() == record.get_scope():     
+                    found = True
+                    break   
+            if not found:
+                feature_vector.get_record_list().append(new_feature_record)
+        assert(len(set(feature_vector.get_record_list())) == len(feature_vector.get_record_list()))
         
 class MergeAction(GroupAction):
     def score(self, abundance_deviation, score_deviation, feature_record):
@@ -127,7 +135,16 @@ class MergeAction(GroupAction):
         
         new_groups = self.problem_data.get_split_groups(feature_record.get_scope(), feature_record.get_id(), feature_record.get_scope()-1)
         for group in new_groups:
-            feature_vector.get_record_list().append(self.problem_data.get_feature_record(*group))
+            new_feature_record = self.problem_data.get_feature_record(*group)
+            found = False
+            for record in feature_vector.get_record_list():
+                if new_feature_record.get_id() == record.get_id() and new_feature_record.get_scope() == record.get_scope():     
+                    found = True
+                    break   
+            if not found:
+                feature_vector.get_record_list().append(new_feature_record)
+        assert(len(set(feature_vector.get_record_list())) == len(feature_vector.get_record_list()))     
+
         
         
 class DeleteAction(GroupAction):

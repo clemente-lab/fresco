@@ -1,5 +1,3 @@
-from fresco.parallel_processing import multiprocess_functions, ProcessDefinition
-
 class ScopeOptimization():
     def __init__(self, group_vector_scorer, vector_generator, n_processes, n_iterations, n_maintain):
         self.group_vector_scorer = group_vector_scorer
@@ -18,8 +16,9 @@ class ScopeOptimization():
      
             #Note: The entire problem_data object does not have to be copied to test a vector, only the column vector.
             outcome_set += self.group_vector_scorer.score_feature_vector_set(problem_data, new_vector_set, self.n_processes)
-            
+   
             outcome_set.sort(key=lambda outcome:outcome.prediction_quality, reverse=True)
+
             outcome_set = outcome_set[:self.n_maintain]
             return_set.append(outcome_set[0])
 
