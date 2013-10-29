@@ -4,9 +4,6 @@ from __future__ import division
 from sklearn.svm import LinearSVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-import numpy as np
-import sys
-
 
 def parse_object_string_sample(object_string):
     try:

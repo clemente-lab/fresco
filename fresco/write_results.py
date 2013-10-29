@@ -80,8 +80,6 @@ def testing_output_lines(testing_output):
             
         return sorted([(key, ret[key]) for key in ret.keys()])
 
-    #print testing_output
-
     header = ("ITERATION", "AVG_PREDICTION_SCORE", "STD_DEV_PREDICTION_SCORE", "AVG_FEATURE_VECTOR_SCOPE_DISTRIBUTION")
     properties = [header]
 

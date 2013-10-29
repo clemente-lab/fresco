@@ -4,7 +4,6 @@ from fresco.utils import InputTypeError, check_input_type, parse_object_string_s
 from fresco.feature_vector import FeatureRecord
 from fresco.parallel_processing import multiprocess_functions, ProcessDefinition
 from fresco.parse_input_files import read_split_file, read_mapping_file
-from feature_vector import FeatureVector
 from mask_stack import MaskStack
 import inspect
 
