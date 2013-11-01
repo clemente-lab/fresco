@@ -8,8 +8,8 @@ from os.path import basename, exists, isdir, join
 
 from matplotlib import use
 use('Agg', warn=False)
-from matplotlib.pyplot import (errorbar, figure, legend, plot, savefig, title,
-                               xlabel, ylabel, ylim)
+from matplotlib.pyplot import (close, errorbar, figure, legend, plot, savefig,
+                               subplot, title, xlabel, ylabel, ylim)
 
 model_info = {
     'lr': ('Logistic Regression', 'r'),
@@ -20,7 +20,7 @@ model_info = {
 otu_map_list_filename = 'otu_maps.txt'
 iter_results_filename = 'prediction_testing_output.txt'
 result_log_filename = 'info.log'
-feature_vector_filename = 'feature_vector_output.txt'
+feature_vector_filename = 'fold_feature_vectors_output.txt'
 iter_plot_filename = 'iter_plot.png'
 thresh_plot_filename = 'thresh_plot.png'
 iter_plot_title = 'Accuracy by Iterations'
@@ -44,6 +44,9 @@ def main():
             thresh_results = {}
 
             for level_dir, level in get_dirs(cat_dir):
+                # Convert level to an integer because we sort the levels later
+                # on.
+                level = int(level)
                 iter_results = {}
 
                 for model_dir, model in get_dirs(level_dir,
@@ -92,7 +95,7 @@ def parse_iter_results_file(f):
             seen_header = True
             continue
 
-        iteration, accuracy, yerr = map(float, line.split('\t'))
+        iteration, accuracy, yerr = map(float, line.split('\t')[:-1])
         iterations.append(iteration)
         accuracies.append(accuracy)
         yerrs.append(yerr)
@@ -100,7 +103,7 @@ def parse_iter_results_file(f):
     return iterations, accuracies, yerrs
 
 def generate_iter_plot(plot_data, output_fp, study, category, level):
-    figure()
+    fig = figure()
 
     for model, (iterations, accuracies, yerrs) in sorted(plot_data.items()):
         if model not in model_info:
@@ -117,14 +120,16 @@ def generate_iter_plot(plot_data, output_fp, study, category, level):
 
     xlabel(iter_plot_xlabel)
     ylabel(iter_plot_ylabel)
-    plot_title = '%s (%s, %s, %s)' % (iter_plot_title, study, category, level)
+    plot_title = '%s (%s, %s, %d)' % (iter_plot_title, study, category, level)
     title(plot_title)
     legend()
     ylim(ymax=1.0)
     savefig(output_fp)
+    close(fig)
 
 def generate_thresh_plot(plot_data, output_fp, study, category):
-    figure()
+    fig = figure()
+    ax = subplot(111)
 
     levels = []
     comp_plot_data = defaultdict(lambda: ([], []))
@@ -161,9 +166,17 @@ def generate_thresh_plot(plot_data, output_fp, study, category):
     ylabel(thresh_plot_ylabel)
     plot_title = '%s (%s, %s)' % (thresh_plot_title, study, category)
     title(plot_title)
-    legend()
     ylim(ymax=1.0)
+
+    # From http://stackoverflow.com/a/4701285
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.35, box.width,
+                     box.height * 0.65])
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True,
+              shadow=True)
+
     savefig(output_fp)
+    close(fig)
 
 
 if __name__ == "__main__":
