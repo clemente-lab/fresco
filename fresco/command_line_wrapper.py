@@ -94,7 +94,8 @@ def command_line_argument_wrapper(model, n_iterations, group_map_files,
                  ("negate", types.BooleanType),
                  ("output_dir", types.StringType),
                  ("prediction_field", types.StringType),
-                 ("include_only", (types.NoneType, types.ListType)),
+                 ("include_only", (types.NoneType, types.ListType,
+                                   types.TupleType)),
                  ("group_map_files", types.ListType)
                 ]
     for var_name, var_type in simple_var_types:
