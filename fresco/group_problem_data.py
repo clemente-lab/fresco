@@ -215,7 +215,8 @@ def build_problem_data(group_map_files, mapping_file, prediction_field,
                  ("start_level", types.IntType),
                  ("negate", types.BooleanType),
                  ("prediction_field", types.StringType),
-                 ("include_only", (types.NoneType, types.ListType)),
+                 ("include_only", (types.NoneType, types.ListType,
+                                   types.TupleType)),
                  ("group_map_files", types.ListType)
                 ]
     for var_name, var_type in simple_var_types:
